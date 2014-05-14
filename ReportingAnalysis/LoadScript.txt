@@ -1,0 +1,144 @@
+﻿///$tab Main
+$(include=_Common.qvs)
+$(include=$(this_include))
+///$tab exit
+exit script;
+///$tab Main
+SET ThousandSep=' ';
+SET DecimalSep='.';
+SET MoneyThousandSep=' ';
+SET MoneyDecimalSep=',';
+SET MoneyFormat='R # ##0,00;R-# ##0,00';
+SET TimeFormat='hh:mm:ss TT';
+SET DateFormat='YYYY/MM/DD';
+SET TimestampFormat='YYYY/MM/DD hh:mm:ss[.fff] TT';
+SET MonthNames='Jan;Feb;Mar;Apr;May;Jun;Jul;Aug;Sep;Oct;Nov;Dec';
+SET DayNames='Mon;Tue;Wed;Thu;Fri;Sat;Sun';
+
+Temp:
+LOAD [Report Number], 
+     [Report Name], 
+     SP, 
+     [Report Type], 
+     Field, 
+     [Stored field or Calculated field ], 
+     [Stored / Calculated field Detail], 
+     [Data type], 
+     [Data size], 
+     [Data Example]
+FROM
+VerilendReportAnalysis.xls
+(biff, embedded labels, table is [ImportFriendly$]);
+
+Reports:
+load [Report Number], 
+     [Report Name], 
+     [Report Type],
+     SP
+Resident
+	Temp;
+	
+Fields:
+Load [Report Number], 
+	 Field, 
+     [Stored field or Calculated field ], 
+     [Stored / Calculated field Detail], 
+     [Data type], 
+     [Data size], 
+     [Data Example]
+Resident
+	Temp;
+	
+Drop table Temp;
+
+Countries:
+Load AutoNumber(Location) as CountryID,
+Location as Country
+From Copy of top-used-reports-from-statsd.xls (biff, embedded labels, table is [top-used-reports-from-statsd.cs$]);
+
+ReportCategories:
+Left Keep(Reports)
+LOAD CategoryID, 
+     CategoryName, 
+     Report as [Report Name]
+FROM
+ReportCategories.xls
+(biff, embedded labels, table is [Categories$]);
+
+ReportCount:
+LOAD Location as Country, 
+     Server, 
+     [Report Name], 
+     Count, 
+     [Country Frequency]
+FROM
+[Copy of top-used-reports-from-statsd.xls]
+(biff, embedded labels, table is [top-used-reports-from-statsd.cs$]);
+
+left join(Fields)
+Load Field,
+[Dimension/Expression]
+from DimensionExpressionAnalysis.xls
+(biff, embedded labels, table is [Sheet1$]);
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+///$tab Main 2
+Dasboards:
+LOAD DashboardID, 
+     DashboardName
+FROM
+DashboardRequirements.xls
+(biff, embedded labels, table is [Dashboards$]);
+
+FocusAreas:
+LOAD FocusAreaID, 
+     DashboardID, 
+     FocusAreaName
+FROM
+DashboardRequirements.xls
+(biff, embedded labels, table is [FocusArea$]);
+
+DataRequirements:
+Left Keep (Fields)
+LOAD DataReqID, 
+     FocusAreaID, 
+ //    DashboardID, 
+     DataReqName, 
+     Fields as SuggestedField
+     
+FROM
+DashboardRequirements.xls
+(biff, embedded labels, table is [DataRequirements$]);
+
+Filters:
+Left Keep(DataRequirements)
+LOAD DataReqID, 
+     FilterID, 
+     FilterName
+FROM
+DashboardRequirements.xls
+(biff, embedded labels, table is [Filters$]);
+
+
+
+
+
+
+///$tab Flexifin
+ODBC CONNECT TO Flexifin_Dev;
+SQL SELECT *
+FROM `flexifinbi_qlikview_dev`.`report_component_config`;
+
