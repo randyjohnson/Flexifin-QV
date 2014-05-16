@@ -1,0 +1,28 @@
+2014-05-15 15:26:48:      Execution started.
+2014-05-15 15:26:48:      QlikView Version:11.20.11643.0
+2014-05-15 15:26:48:      CPU Target                    x64
+2014-05-15 15:26:48:      Operating System              Windows 8.1 Single Language  (64 bit edition)
+2014-05-15 15:26:48:      Wow64 mode                    Not using Wow64
+2014-05-15 15:26:48:      MDAC Version                  6.3.9600.16384
+2014-05-15 15:26:48:      MDAC Full Install Version     6.3.9600.16384
+2014-05-15 15:26:48:      PreferredCompression          2
+2014-05-15 15:26:48:      EnableParallelReload          1
+2014-05-15 15:26:48:      ParallelizeQvdLoads           1
+2014-05-15 15:26:48:      AutoSaveAfterReload           0
+2014-05-15 15:26:48:      BackupBeforeReload            0
+2014-05-15 15:26:48:      EnableFlushLog                0
+2014-05-15 15:26:48:      SaveInfoWhenSavingFile        0
+2014-05-15 15:26:48:      UserLogfileCharset            0
+2014-05-15 15:26:48:      OdbcLoginTimeout              -1
+2014-05-15 15:26:48:      OdbcConnectionTimeout         -1
+2014-05-15 15:26:48:      ScriptWantsDbWrite            false
+2014-05-15 15:26:48:      ScriptWantsExe                false
+2014-05-15 15:26:48:      LogFile CodePage Used:        1252
+2014-05-15 15:26:49:       Error: Error in hidden script. For details, open hidden script before reload.
+2014-05-15 15:26:55:       Error: Error in hidden script. For details, open hidden script before reload.
+2014-05-15 15:26:57:       Error: Error in hidden script. For details, open hidden script before reload.
+2014-05-15 15:26:57:       Error: Error in hidden script. For details, open hidden script before reload.
+2014-05-15 15:26:58:       Error: Error in hidden script. For details, open hidden script before reload.
+2014-05-15 15:26:59:       General Script Error
+2014-05-15 15:26:59:       Execution Failed
+2014-05-15 15:26:59:      Execution finished.

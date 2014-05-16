@@ -1,0 +1,2138 @@
+﻿'Option Explicit
+
+function CurrencyChange
+	set v = ActiveDocument.GetVariable("vCurrency")
+	message = "Selections have caused the Currency to change to " + v.GetContent.String
+	msgbox(message)
+end function
+
+function ReportBuilderClearAll
+	ActiveDocument.Fields("%Report_Path").Select ".Clear Report/.Clear Report"
+	Call SetReport
+end function
+
+function SetReport
+	set r = ActiveDocument.Variables("_ReportBuilderReportNumber")
+	ActiveReport = r.GetContent.String	
+	set v = ActiveDocument.GetVariable("ShowLoading")
+	v.SetContent "1",true
+	ActiveDocument.GetApplication.WaitForIdle
+	set table = ActiveDocument.GetSheetObject( "ReportVariables" )
+	for RowIter = 1 to table.GetRowCount-1
+		set cellVar = table.GetCell(RowIter,0)
+		set cellVal = table.GetCell(RowIter,1)
+		set v = ActiveDocument.GetVariable(cellVar.Text & ActiveReport)
+	'	'msgbox(cellVar.Text & " : " & cellVal.Text)
+		v.SetContent cellVal.Text,true
+	next
+	'msgbox("Got here")
+	set v = ActiveDocument.GetVariable("ShowLoading")
+	v.SetContent "0",true
+	ActiveDocument.GetApplication.WaitForIdle
+end function
+
+function SetSheetTitle
+	set v = ActiveDocument.GetVariable("_ActiveSheet")
+	v.SetContent ActiveDocument.ActiveSheet.GetProperties.Name,true
+end function
+
+sub Zoom
+	ActiveDocument.ActiveSheet.FitZoomToWindow
+	ActiveDocument.GetApplication.WaitForIdle  
+    ActiveDocument.GetApplication.Refresh
+    ActiveDocument.ActiveSheet.ApplyZoomToAllSheets
+end sub
+
+
+function SetEntity
+	Call ClearDims
+	set v = ActiveDocument.GetVariable("_Show_Entity")
+	v.SetContent "1",true
+end function
+
+function SetAgent
+	Call ClearDims
+	set v = ActiveDocument.GetVariable("_Show_Agent")
+	v.SetContent "1",true
+end function
+
+function SetClient
+	Call ClearDims
+	set v = ActiveDocument.GetVariable("_Show_Client")
+	v.SetContent "1",true
+end function
+
+function SetLoan
+	Call ClearDims
+	set v = ActiveDocument.GetVariable("_Show_Loan")
+	v.SetContent "1",true
+end function
+
+function SetProcess
+	Call ClearDims
+	set v = ActiveDocument.GetVariable("_Show_Process")
+	v.SetContent "1",true
+end function
+
+function SetProduct
+	Call ClearDims
+	set v = ActiveDocument.GetVariable("_Show_Product")
+	v.SetContent "1",true
+end function
+
+function SetKey
+	Call ClearDims
+	set v = ActiveDocument.GetVariable("_Show_Key")
+	v.SetContent "1",true
+end function
+
+function ClearDims
+	set v = ActiveDocument.GetVariable("_Show_Entity")
+	v.SetContent "0",true
+	set v = ActiveDocument.GetVariable("_Show_Agent")
+	v.SetContent "0",true
+	set v = ActiveDocument.GetVariable("_Show_Client")
+	v.SetContent "0",true
+	set v = ActiveDocument.GetVariable("_Show_Loan")
+	v.SetContent "0",true
+	set v = ActiveDocument.GetVariable("_Show_Process")
+	v.SetContent "0",true
+	set v = ActiveDocument.GetVariable("_Show_Product")
+	v.SetContent "0",true
+	set v = ActiveDocument.GetVariable("_Show_Key")
+	v.SetContent "0",true
+end function
+
+sub BuildMaster_RB
+	call BuildNewSheet("_RB_ReportSheet002", "99" )
+end sub
+sub BuildTestOne_RB
+	call BuildNewSheet("_RB_Test1", "1" )
+end sub
+sub BuildTestTwo_RB
+	call BuildNewSheet("_RB_Test2", "2" )
+end sub
+
+function BuildNewSheet(SheetID, CompSufix)
+	ActiveDocument.ActivateSheetByID SheetID
+	call RemoveOldComponents("_RB_")  '"_RB_"
+	'call RemoveOldComponents("_NV_")  '"_NV_"
+	call RB_Overlay
+	call RB_BuildLevel1("Dim",CompSufix, "9",1,false,"Button")
+	call RB_BuildLevel1("Exp",CompSufix, "6",1,false,"Button")
+	call RB_BuildLevel1("Sel",CompSufix, "9",0,true,"List")
+	call RB_BuildMeasures(CompSufix)
+	'call RB_Build(CompSufix)
+end function
+
+function RB_Overlay
+    		
+	' ========================================
+	'    GREY OVERLAY
+	' ========================================
+			
+	set overlay = ActiveDocument.ActiveSheet.CreateTextObject
+	overlay.SetLayer 80
+	prop = overlay.GetProperties
+		prop.Layout.Frame.ObjectID = "_RB_Overlay"
+		prop.Layout.Text.v = ""
+		prop.Layout.BkgAlpha = 128
+		prop.Layout.BkgColor.PrimaryCol.IsCalculated = true
+		prop.Layout.BkgColor.PrimaryCol.ColorExpr.v = "$(c_Grey_BG)"
+		prop.Layout.Frame.Show.Always = false
+  		prop.Layout.Frame.Show.Expression.v = "vShowOverlay=1"
+	overlay.SetProperties prop	
+
+    set fr = overlay.GetFrameDef
+		fr.RoundedShape = false
+		fr.ShowCaption = false
+	overlay.SetFrameDef fr
+
+	pos = overlay.GetRect
+ 		pos.Top = 0
+ 		pos.Left = 0
+ 		pos.Width = 3500
+		pos.Height = 900
+	overlay.SetRect pos
+
+end function
+
+' ========================================
+'    VISIBLE OVERLAY
+' ========================================
+function RB_OverlayVisible(objectPrefix, objID, xPos, yPos , width, height, switchVariable,Comp_Prefix, CompSufix)
+
+	set dim_overlay = ActiveDocument.ActiveSheet.CreateTextObject
+	dim_overlay.SetLayer 81
+	prop = dim_overlay.GetProperties
+		prop.Layout.Frame.ObjectID = objectPrefix & "Overlay_" & objID & "_" & CompSufix
+		prop.Layout.Text.v = ""
+		'prop.Layout.BkgAlpha = 0
+		prop.Layout.BkgColor.PrimaryCol.IsCalculated = true
+		prop.Layout.BkgColor.PrimaryCol.ColorExpr.v = "$(c_Sheet_BG)"
+		prop.Layout.Frame.Show.Always = false
+  		prop.Layout.Frame.Show.Expression.v = switchVariable & "=" & chr(39) & Comp_Prefix & "_" & objID & "_" & CompSufix & chr(39)
+
+	dim_overlay.SetProperties prop	
+
+    set fr = dim_overlay.GetFrameDef
+		fr.RoundedShape = true
+		fr.ShowCaption = false
+	dim_overlay.SetFrameDef fr
+
+	pos_d = dim_overlay.GetRect
+ 		pos_d.Top = yPos         '146
+ 		pos_d.Left = xPos        '346
+ 		pos_d.Width = width      '533
+		pos_d.Height = height    '306
+	dim_overlay.SetRect pos_d
+
+	' ========================================
+	'    CLOSE BUTTON
+	' ========================================
+			
+	set button = ActiveDocument.ActiveSheet.CreateTextObject
+	button.SetLayer 99
+	prop = button.GetProperties
+		prop.Layout.Frame.ObjectID = objectPrefix & "CloseBut_" & objID & "_" & CompSufix
+		prop.Layout.BkgColor.PrimaryCol.IsCalculated = true
+		prop.Layout.Text.v = "X"
+		prop.Layout.BkgColor.PrimaryCol.ColorExpr.v = "$(c_Accent_BG)" 
+		prop.Layout.TextAdjustHorizontal = 1
+		prop.Layout.TextAdjustVertical = 4
+		prop.Layout.TextColor.PrimaryCol.IsCalculated = true
+		prop.Layout.TextColor.PrimaryCol.ColorExpr.v = "$(c_Accent_FG)" 
+		prop.Layout.Frame.RoundedShape = true
+		prop.Layout.Frame.FixCorner = true
+		prop.Layout.Frame.FixCornerSize = 120
+		prop.Layout.Frame.Power = 2
+		prop.Layout.Frame.EnableBottomLeftRounded = true
+		prop.Layout.Frame.EnableBottomRightRounded = true
+		prop.Layout.Frame.EnableTopLeftRounded = true
+		prop.Layout.Frame.EnableTopRightRounded = true
+		prop.Layout.Frame.Color.PrimaryCol.isCalculated = true
+		prop.Layout.Frame.Color.PrimaryCol.ColorExpr.v = "$(c_Accent_FG)"
+		prop.Layout.Frame.BorderWidth = 12
+		prop.Layout.Frame.Show.Always = false
+  		prop.Layout.Frame.Show.Expression.v = switchVariable & "=" & chr(39) & Comp_Prefix & "_" & objID & "_" & CompSufix & chr(39)
+			
+		set buttonAction = prop.Layout.ActionItems
+		buttonAction.Add
+		buttonAction.Item(0).Type=31
+		set actionParam = buttonAction.Item(0).Parameters
+		actionParam.Add
+		actionParam.Item(0).v =  switchVariable '"_ActiveExpression"
+		actionParam.Add
+		actionParam.Item(1).v = "=if(" & switchVariable & "= 0, " & chr(39) & Comp_Prefix & "_" & objID & "_" & CompSufix & chr(39) & ",if(" & switchVariable & " = " & chr(39) & Comp_Prefix & "_" & objID & "_" & CompSufix & chr(39) & ", 0,if(" & switchVariable & " <> " & chr(39) & Comp_Prefix & "_" & objID & "_" & CompSufix & chr(39) & ", " & chr(39) & Comp_Prefix & "_" & objID & "_" & CompSufix & chr(39) & ")))"
+		'actionParam.Item(1).v = "=if(_ActiveExpression= 0, " & chr(39) & "E_" & source.GetCell(RowIter,24).Text & "_" & CompSufix & chr(39) & ",if(_ActiveExpression = " & chr(39) & "E_" & source.GetCell(RowIter,24).Text & "_" & CompSufix & chr(39) & ", 0,if(_ActiveExpression <> " & chr(39) & "E_" & source.GetCell(RowIter,24).Text & "_" & CompSufix & chr(39) & ", " & chr(39) & "E_" & source.GetCell(RowIter,24).Text & "_" & CompSufix & chr(39) & ")))"
+
+		'buttonAction.Add
+		'buttonAction.Item(1).Type=31
+		'set actionParam = buttonAction.Item(1).Parameters
+		'actionParam.Add
+		'if MasterType="9" then
+		'	actionParam.Item(0).v = "vShowDimensionOverlay"
+		'elseif MasterType="6" then
+		'	actionParam.Item(0).v = "vShowExpressionOverlay"
+		'end if
+		'actionParam.Add
+		'actionParam.Item(1).v = "0"
+
+		buttonAction.Add
+		buttonAction.Item(1).Type=31
+		set actionParam = buttonAction.Item(1).Parameters
+		actionParam.Add
+		actionParam.Item(0).v = "vShowOverlay"
+		actionParam.Add
+		actionParam.Item(1).v = "0"
+
+	button.SetProperties prop	
+
+	    set fr = button.GetFrameDef
+		fr.ShowCaption = false
+		button.SetFrameDef fr
+
+		fnt = button.GetFrameDef.Font
+			fnt.FontName = "Arial"
+			fnt.Bold = false
+			fnt.Italic = false
+			fnt.Underline = false
+			fnt.PointSize1000 = 14000
+		button.SetFont fnt
+
+		'if (MasterType = "6") then
+		'	' Expressions
+    	'	pos = button.GetRect
+		' 		pos.Top = 47
+		' 		pos.Left = 1043 
+	 	'		pos.Width = 32 
+	 	'		pos.Height = 32
+   		'	button.SetRect pos
+		'elseif (MasterType = "9") then
+			' Dimensions
+    		pos = button.GetRect
+		 		pos.Top = yPos-11 
+		 		pos.Left = xPos + width - 23 
+	 			pos.Width = 32 
+	 			pos.Height = 32
+   			button.SetRect pos
+		'end if
+	
+end function
+
+function RemoveOldComponents (ToRemove)
+	if (ToRemove) = "*" then
+		set s=ActiveDocument.ActiveSheet
+		orignumber=s.NoOfSheetObjects
+		for i=0 to orignumber-1
+	   	 	s.SheetObjects(0).Close
+		next
+	else
+		set s=ActiveDocument.ActiveSheet
+		checking = 1
+		do while checking =1
+			recheck = 0
+			for i=0 to s.NoOfSheetObjects-1
+				set sObj = s.SheetObjects(i)
+				'msgbox("Checking : " & sObj.GetObjectId)		
+				if (Left(sObj.GetObjectId,13) = "Document\" & ToRemove) then
+					'msgbox("Deleting : " & sObj.GetObjectId)		
+   		 			s.SheetObjects(i).Close
+   	 				recheck = 1
+    				exit for
+				end if
+			next
+			if recheck = 1 then
+				checking = 1
+			else
+				checking = 0
+			end if
+		loop
+	end if
+end function 
+
+function RB_BuildMeasures(CompSufix)
+	objectPrefix = "_RB_Mea_" & CompSufix & "_"
+	objectCount=1
+	set source = ActiveDocument.GetSheetObject("RBDimData")
+	buttonHeight = 42
+	for firstRec = 1 to source.GetRowCount-1
+		if (source.GetCell(firstRec,1).Text = "11") then
+			startPos = firstRec
+			pos_x = CInt(source.GetCell(firstRec,2).Text)
+			pos_y = CInt(source.GetCell(firstRec,3).Text)
+			currentRow = source.GetCell(firstRec,8).Text
+			currentOwner = source.GetCell(firstRec,10).Text
+			currentTop = pos_y
+			currentHeight = buttonHeight
+			'totalHeight = currentHeight
+			totalSpans = CInt(source.GetCell(firstRec,7).Text)
+			paddingLeft = CInt(source.GetCell(firstRec,21).Text)
+			paddingRight = CInt(source.GetCell(firstRec,22).Text)
+			totalWidth = CInt(source.GetCell(firstRec,11).Text)
+			spanWidth = (totalWidth - paddingLeft - paddingRight)/totalSpans
+			activeSpanSlot = 0
+			exit for
+		end if
+	next
+	for RowIter = startPos to source.GetRowCount-1
+		if (source.GetCell(RowIter,1).Text = "11") or (source.GetCell(RowIter,1).Text = "12") or (source.GetCell(RowIter,1).Text = "3") then	
+			if (currentOwner <> source.GetCell(RowIter,10).Text) then
+				currentOwner = source.GetCell(RowIter,10).Text
+				currentTop = currentTop + buttonHeight
+				currentHeight = currentHeight + (buttonHeight/2)
+				'totalHeight = totalHeight + (buttonHeight/2) 
+		   		pos = text.GetRect
+	    		pos.Height = currentHeight
+	    		text.SetRect pos
+		   		currentHeight = 0
+			end if
+		
+			if (currentRow <> source.GetCell(RowIter,8).Text) then
+				currentRow = source.GetCell(RowIter,8).Text
+				currentTop = currentTop + buttonHeight
+				currentHeight = currentHeight + buttonHeight
+				'totalHeight = totalHeight + buttonHeight 
+				activeSpanSlot = 0
+			end if
+		end if
+	
+		' Heading and background block
+		if (source.GetCell(RowIter,1).Text = "11") then
+			set text = ActiveDocument.ActiveSheet.CreateTextObject
+			text.SetLayer CInt(source.GetCell(RowIter,15).Text)
+			prop = text.GetProperties
+				prop.Layout.Frame.ObjectID = objectPrefix & objectCount
+				objectCount = objectCount + 1
+				prop.Layout.Text.v = "=Only({<%Dic_Item={" & source.GetCell(RowIter,5).Text & "}>} %Dic_Value)"
+				prop.Layout.TextAdjustHorizontal = 1
+				prop.Layout.TextAdjustVertical = 0
+				prop.Layout.BkgAlpha = 0
+				prop.Layout.BkgColor.PrimaryCol.IsCalculated = true
+				prop.Layout.BkgColor.PrimaryCol.ColorExpr.v = "$(c_Sheet_BG)"
+				prop.Layout.TextColor.PrimaryCol.IsCalculated = true
+				prop.Layout.TextColor.PrimaryCol.ColorExpr.v = "$(c_Accent_BG)"
+				prop.Layout.BottomMargin = 10
+				prop.Layout.TopMargin = 40
+				prop.Layout.LeftMargin = 10
+				prop.Layout.RightMargin = 10
+				prop.Layout.Frame.Show.Always = false
+   		  		prop.Layout.Frame.Show.Expression.v = "_MenuActive=1"
+			text.SetProperties prop	
+
+		    set fr = text.GetFrameDef
+				fr.RoundedShape = false
+				fr.ShowCaption = false
+			text.SetFrameDef fr
+
+			fnt = text.GetFrameDef.Font
+				fnt.FontName = "Arial"
+				fnt.Bold = false
+				fnt.Italic = false
+				fnt.Underline = false
+				fnt.PointSize1000 = 16000
+			text.SetFont fnt
+
+    		pos = text.GetRect
+   		 		pos.Top = currentTop
+   		 		pos.Left = pos_x
+    			pos.Width = CInt(source.GetCell(RowIter,11).Text)
+    			pos.Height = buttonHeight
+    		text.SetRect pos
+    		
+   			totalSpans = CInt(source.GetCell(RowIter,7).Text)
+			paddingLeft = CInt(source.GetCell(RowIter,21).Text)
+			paddingRight = CInt(source.GetCell(RowIter,22).Text)
+			totalWidth = CInt(source.GetCell(RowIter,11).Text)
+			spanWidth = (totalWidth - paddingLeft - paddingRight)/totalSpans
+		end if
+
+		' Sub heading
+		if (source.GetCell(RowIter,1).Text = "12") then
+			set subtext = ActiveDocument.ActiveSheet.CreateTextObject
+			subtext.SetLayer CInt(source.GetCell(RowIter,15).Text)
+			prop = subtext.GetProperties
+				prop.Layout.Frame.ObjectID = objectPrefix & objectCount
+				objectCount = objectCount + 1
+				prop.Layout.Text.v = "=Only({<%Dic_Item={" & source.GetCell(RowIter,5).Text & "}>} %Dic_Value)"
+				prop.Layout.TextAdjustHorizontal = 1
+				prop.Layout.TextAdjustVertical = 8
+				prop.Layout.BkgAlpha = 0
+				prop.Layout.BkgColor.PrimaryCol.IsCalculated = true
+				prop.Layout.BkgColor.PrimaryCol.ColorExpr.v = "$(c_Sheet_BG)"
+				prop.Layout.TextColor.PrimaryCol.IsCalculated = true
+				prop.Layout.TextColor.PrimaryCol.ColorExpr.v = "$(c_Sheet_FG)"
+				prop.Layout.Frame.Show.Always = false
+   				prop.Layout.Frame.Show.Expression.v = "_MenuActive=1"
+			subtext.SetProperties prop	
+
+		    set fr = subtext.GetFrameDef
+				fr.RoundedShape = false
+				fr.ShowCaption = false
+			subtext.SetFrameDef fr
+
+			fnt = subtext.GetFrameDef.Font
+				fnt.FontName = "Arial"
+				fnt.Bold = false
+				fnt.Italic = false
+				fnt.Underline = false
+				fnt.PointSize1000 = 10000
+			subtext.SetFont fnt
+
+    		pos = subtext.GetRect
+ 		   		pos.Top = currentTop + CInt(source.GetCell(RowIter,23).Text) 
+    			pos.Left = pos_x + paddingLeft + (activeSpanSlot*spanWidth) + CInt(source.GetCell(RowIter,21).Text) 
+    			pos.Width = CInt(source.GetCell(RowIter,7).Text) * spanWidth - CInt(source.GetCell(RowIter,21).Text) - CInt(source.GetCell(RowIter,22).Text)  
+    			pos.Height = buttonHeight - CInt(source.GetCell(RowIter,23).Text) - CInt(source.GetCell(RowIter,20).Text)
+    		subtext.SetRect pos
+   		end if
+
+		' Measure button
+		if (source.GetCell(RowIter,1).Text = "1" or source.GetCell(RowIter,1).Text = "3" ) then
+			BR=false
+			BL=false
+			TR=false
+			TL=false
+			if (source.GetCell(RowIter,17).Text = "1") then
+				BR=true
+			end if
+			if (source.GetCell(RowIter,18).Text = "1") then
+				TL=true
+			end if
+			if (source.GetCell(RowIter,19).Text = "1") then
+				TR=true
+			end if
+			if (source.GetCell(RowIter,16).Text = "1") then
+				BL=true
+			end if
+
+			ShowVal = 2
+			ErrorText = ""
+			if CInt(source.GetCell(RowIter,32).Text) = 0 then 
+				ShowVal = 1 
+				ErrorText = "Not available in this report"
+			end if
+			if CInt(source.GetCell(RowIter,28).Text) = 0 then 
+				ShowVal = 0 
+				ErrorText = "Not available in your Edition"
+			end if
+		
+			set button = ActiveDocument.ActiveSheet.CreateTextObject
+			button.SetLayer CInt(source.GetCell(RowIter,15).Text)
+			prop = button.GetProperties
+				prop.Layout.Frame.ObjectID = objectPrefix & objectCount
+				objectCount = objectCount + 1
+				prop.Layout.BkgColor.PrimaryCol.IsCalculated = true
+				prop.Layout.Text.v = "=Only({<%Dic_Item={" & source.GetCell(RowIter,5).Text & "}>} %Dic_Value)"
+
+				if (ShowVal = 2) then
+					prop.Layout.BkgColor.PrimaryCol.ColorExpr.v = "if(" & source.GetCell(RowIter,12).Text & "_" & CompSufix & ",$(c_Accent_BG),$(c_GreyMid_BG))"
+					prop.Layout.TextColor.PrimaryCol.IsCalculated = true
+					prop.Layout.TextColor.PrimaryCol.ColorExpr.v = "if(" & source.GetCell(RowIter,12).Text & "_" & CompSufix & "=1,$(c_Accent_FG),$(c_GreyLow_FG))"
+					set buttonAction = prop.Layout.ActionItems
+					buttonAction.Add
+					buttonAction.Item(0).Type=31
+					set actionParam = buttonAction.Item(0).Parameters
+					actionParam.Add
+					actionParam.Item(0).v = source.GetCell(RowIter,12).Text & "_" & CompSufix
+					actionParam.Add
+					actionParam.Item(1).v = "=if(" & source.GetCell(RowIter,12).Text & "_" & CompSufix & "=1,0,1)"   
+				else
+					prop.Layout.TextColor.PrimaryCol.IsCalculated = true
+					prop.Layout.BkgColor.PrimaryCol.ColorExpr.v = "$(c_GreyLow_BG)"
+					prop.Layout.TextColor.PrimaryCol.ColorExpr.v = "$(c_GreyMid_BG)"
+				end if
+
+				prop.Layout.TextAdjustHorizontal = 1
+				prop.Layout.TextAdjustVertical = 4
+				prop.Layout.Frame.RoundedShape = true
+				prop.Layout.Frame.FixCorner = true
+				prop.Layout.Frame.FixCornerSize = 30
+				prop.Layout.Frame.Power = 2
+				prop.Layout.Frame.EnableBottomLeftRounded = BL
+				prop.Layout.Frame.EnableBottomRightRounded = BR
+				prop.Layout.Frame.EnableTopLeftRounded = TL
+				prop.Layout.Frame.EnableTopRightRounded = TR
+				prop.Layout.Frame.Show.Always = false
+    	 		prop.Layout.Frame.Show.Expression.v = "_MenuActive=1"
+			
+			button.SetProperties prop	
+
+		    set fr = button.GetFrameDef
+				fr.ShowCaption = false
+			button.SetFrameDef fr
+
+			fnt = button.GetFrameDef.Font
+				fnt.FontName = "Arial"
+				fnt.Bold = false
+				fnt.Italic = false
+				fnt.Underline = false
+				fnt.PointSize1000 = 10000
+			button.SetFont fnt
+
+    		pos = button.GetRect
+ 		   		pos.Top = currentTop + CInt(source.GetCell(RowIter,23).Text) 
+    			pos.Left = pos_x + paddingLeft + (activeSpanSlot*spanWidth) + CInt(source.GetCell(RowIter,21).Text) 
+    			pos.Width = CInt(source.GetCell(RowIter,7).Text) * spanWidth - CInt(source.GetCell(RowIter,21).Text) - CInt(source.GetCell(RowIter,22).Text)  
+    			pos.Height = buttonHeight - CInt(source.GetCell(RowIter,23).Text) - CInt(source.GetCell(RowIter,20).Text)
+    		button.SetRect pos
+    		activeSpanSlot = activeSpanSlot + CInt(source.GetCell(RowIter,7).Text)
+		end if
+	next
+	currentHeight = currentHeight + (buttonHeight/2) 
+	'totalHeight = totalHeight + (buttonHeight * 3) 
+	pos = text.GetRect
+    pos.Height = currentHeight
+    text.SetRect pos
+    
+end function
+
+function RB_BuildLevel1(Comp_Prefix, CompSufix, MasterType, ShowWithMenu, UseAltDic, Comp_Type)
+	objectPrefix = "_RB_" & Comp_Prefix & "_" & CompSufix & "_"
+	objectCount=1
+	set source = ActiveDocument.GetSheetObject("RBDimData")
+
+	buttonHeight = 42
+
+	for firstRec = 1 to source.GetRowCount-1
+		if (source.GetCell(firstRec,1).Text = MasterType) then
+			startPos = firstRec
+			pos_x = CInt(source.GetCell(firstRec,2).Text)
+			pos_y = CInt(source.GetCell(firstRec,3).Text)
+			currentRow = source.GetCell(firstRec,8).Text
+			currentOwner = source.GetCell(firstRec,10).Text
+			currentTop = pos_y
+			currentHeight = buttonHeight
+			totalSpans = CInt(source.GetCell(firstRec,7).Text)
+			paddingLeft = CInt(source.GetCell(firstRec,21).Text)
+			paddingRight = CInt(source.GetCell(firstRec,22).Text)
+			totalWidth = CInt(source.GetCell(firstRec,11).Text)
+			spanWidth = (totalWidth - paddingLeft - paddingRight)/totalSpans
+			activeSpanSlot = 0
+			exit for
+		end if
+	next
+
+	for RowIter = startPos to source.GetRowCount-1
+		if (((source.GetCell(RowIter,1).Text = "6") or (source.GetCell(RowIter,1).Text = "7")) and (MasterType = "6")) OR (((source.GetCell(RowIter,1).Text = "9") or (source.GetCell(RowIter,1).Text = "15")) and (MasterType = "9")) then	
+			if (currentOwner <> source.GetCell(RowIter,10).Text) then
+				currentOwner = source.GetCell(RowIter,10).Text
+				currentTop = currentTop + buttonHeight
+				currentHeight = currentHeight + (buttonHeight/2)
+		   		pos = text.GetRect
+	    		pos.Height = currentHeight
+	    		text.SetRect pos
+		   		currentHeight = 0
+			end if
+		
+			if (currentRow <> source.GetCell(RowIter,8).Text) then
+				currentRow = source.GetCell(RowIter,8).Text
+				currentTop = currentTop + buttonHeight
+				currentHeight = currentHeight + buttonHeight
+				activeSpanSlot = 0
+			end if
+		end if
+	
+		' Heading and background block
+		if ((source.GetCell(RowIter,1).Text = "6") and (MasterType="6")) OR ((source.GetCell(RowIter,1).Text = "9") and (MasterType="9")) then
+			set text = ActiveDocument.ActiveSheet.CreateTextObject
+			text.SetLayer CInt(source.GetCell(RowIter,15).Text)
+			prop = text.GetProperties
+				prop.Layout.Frame.ObjectID = objectPrefix & objectCount
+				objectCount = objectCount + 1
+				if (UseAltDic) then
+					prop.Layout.Text.v = "=Only({<%Dic_Item={" & source.GetCell(RowIter,27).Text & "}>} %Dic_Value)"
+				else
+					prop.Layout.Text.v = "=Only({<%Dic_Item={" & source.GetCell(RowIter,5).Text & "}>} %Dic_Value)"
+				end if
+				prop.Layout.TextAdjustHorizontal = 1
+				prop.Layout.TextAdjustVertical = 0
+				prop.Layout.BkgAlpha = 0
+				prop.Layout.BkgColor.PrimaryCol.IsCalculated = true
+				prop.Layout.BkgColor.PrimaryCol.ColorExpr.v = "$(c_Sheet_BG)"
+				prop.Layout.TextColor.PrimaryCol.IsCalculated = true
+				prop.Layout.TextColor.PrimaryCol.ColorExpr.v = "$(c_Accent_BG)"
+				prop.Layout.BottomMargin = 10
+				prop.Layout.TopMargin = 40
+				prop.Layout.LeftMargin = 10
+				prop.Layout.RightMargin = 10
+				prop.Layout.Frame.Show.Always = false
+   		  		prop.Layout.Frame.Show.Expression.v = "_MenuActive=" & ShowWithMenu
+				if (UseAltDic) then
+					help_Text = "(" & source.GetCell(RowIter,27).Text & ")" 
+				else
+					help_Text = "(" & source.GetCell(RowIter,5).Text & ")" 
+				end if
+				prop.Layout.Frame.HelpText.v = help_Text
+			text.SetProperties prop	
+
+		    set fr = text.GetFrameDef
+				fr.RoundedShape = false
+				fr.ShowCaption = false
+			text.SetFrameDef fr
+
+			fnt = text.GetFrameDef.Font
+				fnt.FontName = "Arial"
+				fnt.Bold = false
+				fnt.Italic = false
+				fnt.Underline = false
+				fnt.PointSize1000 = 16000
+			text.SetFont fnt
+
+    		pos = text.GetRect
+   		 		pos.Top = currentTop
+   		 		pos.Left = pos_x
+   		 		pos.Width = CInt(source.GetCell(RowIter,11).Text)
+    			pos.Height = buttonHeight
+    		text.SetRect pos
+    		
+   			totalSpans = CInt(source.GetCell(RowIter,7).Text)
+			paddingLeft = CInt(source.GetCell(RowIter,21).Text)
+			paddingRight = CInt(source.GetCell(RowIter,22).Text)
+			totalWidth = CInt(source.GetCell(RowIter,11).Text)
+			spanWidth = (totalWidth - paddingLeft - paddingRight)/totalSpans
+		end if
+
+		' Expand Button
+		if ((source.GetCell(RowIter,1).Text = "7") and (MasterType="6")) OR	((source.GetCell(RowIter,1).Text = "15") and (MasterType="9")) then
+			BR=false
+			BL=false
+			TR=false
+			TL=false
+			if (source.GetCell(RowIter,17).Text = "1") then
+				BR=true
+			end if
+			if (source.GetCell(RowIter,18).Text = "1") then
+				TL=true
+			end if
+			if (source.GetCell(RowIter,19).Text = "1") then
+				TR=true
+			end if
+			if (source.GetCell(RowIter,16).Text = "1") then
+				BL=true
+			end if
+		
+		
+			set button = ActiveDocument.ActiveSheet.CreateTextObject
+			
+			ShowVal = 2
+			ErrorText = ""
+			if CInt(source.GetCell(RowIter,32).Text) = 0 then 
+				ShowVal = 1 
+				ErrorText = "Not available in this report"
+			end if
+			if CInt(source.GetCell(RowIter,28).Text) = 0 then 
+				ShowVal = 0 
+				ErrorText = "Not available in your Edition"
+			end if
+			
+			button.SetLayer CInt(source.GetCell(RowIter,15).Text)
+			prop = button.GetProperties
+				prop.Layout.Frame.ObjectID = objectPrefix & objectCount
+				objectCount = objectCount + 1
+				prop.Layout.BkgColor.PrimaryCol.IsCalculated = true
+				prop.Layout.Text.v = "=Only({<%Dic_Item={" & source.GetCell(RowIter,5).Text & "}>} %Dic_Value)"
+
+				if (ShowVal = 2) or (Comp_Prefix="Sel") then
+					prop.Layout.BkgColor.PrimaryCol.ColorExpr.v = "if(_ActiveExpression=" & chr(39) & Comp_Prefix & "_" & source.GetCell(RowIter,24).Text & "_" & CompSufix & chr(39)& ", $(c_Sheet_BG), ARGB(255," & source.GetCell(RowIter,0).Text & "_Red," & source.GetCell(RowIter,0).Text & "_Green," & source.GetCell(RowIter,0).Text & "_Blue))" 
+					prop.Layout.TextColor.PrimaryCol.IsCalculated = true
+					prop.Layout.TextColor.PrimaryCol.ColorExpr.v = "if(_ActiveExpression=" & chr(39) & Comp_Prefix & "_" & source.GetCell(RowIter,24).Text & "_" & CompSufix & chr(39) & ",$(c_Sheet_FG),$(" & source.GetCell(RowIter,0).Text & "_FG))" 
+					prop.Layout.Frame.Color.PrimaryCol.isCalculated = true
+					prop.Layout.Frame.Color.PrimaryCol.ColorExpr.v = "ARGB(255," & source.GetCell(RowIter,0).Text & "_Red," & source.GetCell(RowIter,0).Text & "_Green," & source.GetCell(RowIter,0).Text & "_Blue)"
+					prop.Layout.Frame.BorderWidth = 6
+					set buttonAction = prop.Layout.ActionItems
+					buttonAction.Add
+					buttonAction.Item(0).Type=31
+					set actionParam = buttonAction.Item(0).Parameters
+					actionParam.Add
+					actionParam.Item(0).v = "_ActiveExpression"
+					actionParam.Add
+					actionParam.Item(1).v = "=if(_ActiveExpression= 0, " & chr(39) & Comp_Prefix & "_" & source.GetCell(RowIter,24).Text & "_" & CompSufix & chr(39) & ",if(_ActiveExpression = " & chr(39) & Comp_Prefix & "_" & source.GetCell(RowIter,24).Text & "_" & CompSufix & chr(39) & ", 0,if(_ActiveExpression <> " & chr(39) & Comp_Prefix & "_" & source.GetCell(RowIter,24).Text & "_" & CompSufix & chr(39) & ", " & chr(39) & Comp_Prefix & "_" & source.GetCell(RowIter,24).Text & "_" & CompSufix & chr(39) & ")))"
+
+					buttonAction.Add
+					buttonAction.Item(1).Type=31
+					set actionParam = buttonAction.Item(1).Parameters
+					actionParam.Add
+					if MasterType="9" then
+						actionParam.Item(0).v = "vShowDimensionOverlay"
+					elseif MasterType="6" then
+						actionParam.Item(0).v = "vShowExpressionOverlay"
+					end if
+					actionParam.Add
+					actionParam.Item(1).v = "1"
+
+					buttonAction.Add
+					buttonAction.Item(2).Type=31
+					set actionParam = buttonAction.Item(2).Parameters
+					actionParam.Add
+					actionParam.Item(0).v = "vShowOverlay"
+					actionParam.Add
+					actionParam.Item(1).v = "1"
+				else
+					prop.Layout.BkgColor.PrimaryCol.IsCalculated = true
+					prop.Layout.BkgColor.PrimaryCol.ColorExpr.v = "$(c_GreyLow_BG)"
+					prop.Layout.TextColor.PrimaryCol.IsCalculated = true
+					prop.Layout.TextColor.PrimaryCol.ColorExpr.v = "$(c_GreyMid_BG)"
+					prop.Layout.Frame.BorderWidth = 0
+				end if
+				
+				prop.Layout.TextAdjustHorizontal = 1
+				prop.Layout.TextAdjustVertical = 4
+				prop.Layout.Frame.RoundedShape = true
+				prop.Layout.Frame.FixCorner = true
+				prop.Layout.Frame.FixCornerSize = 30
+				prop.Layout.Frame.Power = 2
+				prop.Layout.Frame.EnableBottomLeftRounded = BL
+				prop.Layout.Frame.EnableBottomRightRounded = BR
+				prop.Layout.Frame.EnableTopLeftRounded = TL
+				prop.Layout.Frame.EnableTopRightRounded = TR
+				prop.Layout.Frame.Show.Always = false
+   		  		prop.Layout.Frame.Show.Expression.v = "_MenuActive=" & ShowWithMenu
+				help_Text =  ErrorText & chr(10) & "(" & source.GetCell(RowIter,5).Text & ")" 
+				prop.Layout.Frame.HelpText.v = help_Text
+
+			button.SetProperties prop	
+
+		    set fr = button.GetFrameDef
+				fr.ShowCaption = false
+			button.SetFrameDef fr
+
+			fnt = button.GetFrameDef.Font
+				fnt.FontName = "Arial"
+				fnt.Bold = false
+				fnt.Italic = false
+				fnt.Underline = false
+				fnt.PointSize1000 = 10000
+			button.SetFont fnt
+
+    		pos = button.GetRect
+   		 		pos.Top = currentTop + CInt(source.GetCell(RowIter,23).Text) 
+   		 		pos.Left = pos_x + paddingLeft + (activeSpanSlot*spanWidth) + CInt(source.GetCell(RowIter,21).Text) 
+    			pos.Width = CInt(source.GetCell(RowIter,7).Text) * spanWidth - CInt(source.GetCell(RowIter,21).Text) - CInt(source.GetCell(RowIter,22).Text)  
+    			pos.Height = buttonHeight - CInt(source.GetCell(RowIter,23).Text) - CInt(source.GetCell(RowIter,20).Text)
+    		button.SetRect pos
+    		activeSpanSlot = activeSpanSlot + CInt(source.GetCell(RowIter,7).Text)
+    		pos = button.GetRect
+
+			' ========================================
+
+			if (ShowVal = 2) or (Comp_Prefix="Sel") then
+				if (Comp_Type = "Button") then
+   					call RB_BuildExpandedMenu( source.GetCell(RowIter,24).Text, buttonHeight,Comp_Prefix,CompSufix, MasterType, Comp_Type) 
+				else
+   					call RB_BuildSelectionsExpandedMenu( source.GetCell(RowIter,24).Text, buttonHeight,Comp_Prefix,CompSufix, MasterType, Comp_Type)
+   				end if
+   			end if
+		end if
+	next
+	currentHeight = currentHeight + (buttonHeight/2) 
+	pos = text.GetRect
+    pos.Height = currentHeight
+    text.SetRect pos
+    
+end function
+
+sub RB_BuildExpandedMenu(menuID, masterButtonHeight,Comp_Prefix,CompSufix, MasterType, Comp_Type)
+
+	Ex_objectPrefix = "_RB_Dim_" & Comp_Prefix & "_" & menuID & "_" & CompSufix & "_"
+	objectCount=1
+	set Ex_source = ActiveDocument.GetSheetObject("RBDimData")
+	Ex_buttonHeight = 35
+
+	for Ex_firstRec = 1 to Ex_source.GetRowCount-1
+		if (Ex_source.GetCell(Ex_firstRec,14).Text = menuID) then
+			Ex_startPos = Ex_firstRec
+			Ex_currentRow = Ex_source.GetCell(Ex_firstRec,8).Text
+			Ex_currentOwner = Ex_source.GetCell(Ex_firstRec,10).Text
+			menuWidth = CInt(Ex_source.GetCell(Ex_firstRec,11).Text)
+			Ex_x_pos = (1280/2) - (menuWidth/2)
+			Ex_currentTop = 66
+			Ex_currentHeight = 0
+			FirstLine = 1
+			Ex_totalSpans = CInt(Ex_source.GetCell(Ex_firstRec,7).Text)
+			Ex_paddingTop = CInt(Ex_source.GetCell(Ex_firstRec,23).Text)
+			Ex_paddingBottom = CInt(Ex_source.GetCell(Ex_firstRec,20).Text)
+			Ex_paddingLeft = CInt(Ex_source.GetCell(Ex_firstRec,21).Text)
+			Ex_paddingRight = CInt(Ex_source.GetCell(Ex_firstRec,22).Text)
+			Ex_totalWidth = menuWidth + Ex_paddingLeft + Ex_paddingRight
+			Ex_spanWidth = (Ex_totalWidth)/Ex_totalSpans
+			Ex_activeSpanSlot = 0
+			exit for
+		end if
+	next
+
+	for Ex_RowIter = Ex_startPos to Ex_source.GetRowCount-1
+		if (Ex_source.GetCell(Ex_RowIter,14).Text <> menuID) then
+			exit for
+		end if
+
+		if (Ex_currentRow <> Ex_source.GetCell(Ex_RowIter,8).Text) then
+			Ex_currentRow = Ex_source.GetCell(Ex_RowIter,8).Text
+			if (FirstLine=1) then
+				if (Ex_source.GetCell(Ex_RowIter,1).Text = "8") then
+					Ex_currentTop = Ex_currentTop + (masterButtonHeight*.8)
+					Ex_currentHeight = Ex_currentHeight + (masterButtonHeight*.8)
+				else
+					Ex_currentTop = Ex_currentTop + masterButtonHeight
+					Ex_currentHeight = Ex_currentHeight + masterButtonHeight
+				end if 
+			else				
+				Ex_currentTop = Ex_currentTop + Ex_buttonHeight
+				Ex_currentHeight = Ex_currentHeight + Ex_buttonHeight
+			end if
+			FirstLine=0
+			Ex_activeSpanSlot = 0
+		end if
+
+		if (Ex_source.GetCell(Ex_RowIter,1).Text = "13" or Ex_source.GetCell(Ex_RowIter,1).Text = "16") and (Ex_source.GetCell(Ex_RowIter,14).Text = menuID) then
+			set Ex_text = ActiveDocument.ActiveSheet.CreateTextObject
+			Ex_text.SetLayer 85 
+			set Ex_prop = Ex_text.GetProperties
+				Ex_prop.Layout.Frame.ObjectID = Ex_objectPrefix & "Header" & objectCount
+				objectCount = objectCount + 1
+				Ex_prop.Layout.Text.v = "=Only({<%Dic_Item={" & Ex_source.GetCell(Ex_RowIter,5).Text & "}>} %Dic_Value)"
+				Ex_prop.Layout.BkgColor.PrimaryCol.IsCalculated = true
+				Ex_prop.Layout.BkgColor.PrimaryCol.ColorExpr.v = "$(c_Sheet_BG)"
+				Ex_prop.Layout.TextColor.PrimaryCol.IsCalculated = true
+				Ex_prop.Layout.TextColor.PrimaryCol.ColorExpr.v = "ARGB(255," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Red," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Green," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Blue)"
+				'Ex_prop.Layout.Frame.Color.PrimaryCol.isCalculated = true
+				'Ex_prop.Layout.Frame.Color.PrimaryCol.ColorExpr.v = "ARGB(255," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Red," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Green," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Blue)"
+				Ex_prop.Layout.Frame.BorderWidth = 0 '8
+				Ex_prop.Layout.Frame.Show.Always = false
+   		  		Ex_prop.Layout.Frame.Show.Expression.v = "_MenuActive=1 and _ActiveExpression = " & chr(39) & Comp_Prefix & "_" & menuID & "_" & CompSufix & chr(39)
+				help_Text = "(" & Ex_source.GetCell(Ex_RowIter,5).Text & ")" 
+				Ex_prop.Layout.Frame.HelpText.v = help_Text
+			Ex_text.SetProperties Ex_prop	
+
+		    set Ex_fr = Ex_text.GetFrameDef
+				Ex_fr.RoundedShape = false
+				Ex_fr.ShowCaption = false
+			Ex_text.SetFrameDef Ex_fr
+
+    		set Ex_pos = Ex_text.GetRect
+    			Ex_pos.Top = Ex_currentTop
+    			Ex_pos.Left = Ex_x_pos
+    			Ex_pos.Width = Ex_totalWidth + 6
+    			Ex_pos.Height = Ex_buttonHeight
+    		Ex_text.SetRect Ex_pos
+
+			Ex_font = Ex_text.GetFrameDef.Font
+				Ex_font.FontName = "Arial"
+				Ex_font.Bold = false
+				Ex_font.Italic = false
+				Ex_font.Underline = false
+				Ex_font.PointSize1000 = 16000
+			Ex_text.SetFont Ex_font
+
+		end if
+
+		' Sub heading
+		if (Ex_source.GetCell(Ex_RowIter,1).Text = "8" or Ex_source.GetCell(Ex_RowIter,1).Text = "10") then
+			set Ex_subtext = ActiveDocument.ActiveSheet.CreateTextObject
+			Ex_subtext.SetLayer CInt(Ex_source.GetCell(Ex_RowIter,15).Text)
+			Ex_prop = Ex_subtext.GetProperties
+				Ex_prop.Layout.Frame.ObjectID = Ex_objectPrefix & objectCount
+				objectCount = objectCount + 1
+				Ex_prop.Layout.Text.v = "=Only({<%Dic_Item={" & Ex_source.GetCell(Ex_RowIter,5).Text & "}>} %Dic_Value)"
+				Ex_prop.Layout.TextAdjustHorizontal = 1
+				Ex_prop.Layout.TextAdjustVertical = 8
+				Ex_prop.Layout.BkgAlpha = 0
+				Ex_prop.Layout.BkgColor.PrimaryCol.IsCalculated = true
+				Ex_prop.Layout.BkgColor.PrimaryCol.ColorExpr.v = "$(c_Sheet_BG)"
+				Ex_prop.Layout.TextColor.PrimaryCol.IsCalculated = true
+				Ex_prop.Layout.TextColor.PrimaryCol.ColorExpr.v = "$(c_Sheet_FG)"
+				Ex_prop.Layout.Frame.Show.Always = false
+   		  		Ex_prop.Layout.Frame.Show.Expression.v = "_MenuActive=1 and _ActiveExpression = " & chr(39) & Comp_Prefix & "_" & menuID & "_" & CompSufix & chr(39)
+				help_Text = "(" & Ex_source.GetCell(Ex_RowIter,5).Text & ")" 
+				Ex_prop.Layout.Frame.HelpText.v = help_Text
+			Ex_subtext.SetProperties Ex_prop	
+
+		    set Ex_fr = Ex_subtext.GetFrameDef
+				Ex_fr.RoundedShape = false
+				Ex_fr.ShowCaption = false
+			Ex_subtext.SetFrameDef Ex_fr
+
+			Ex_fnt = Ex_subtext.GetFrameDef.Font
+				Ex_fnt.FontName = "Arial"
+				Ex_fnt.Bold = false
+				Ex_fnt.Italic = false
+				Ex_fnt.Underline = false
+				Ex_fnt.PointSize1000 = 10000
+			Ex_subtext.SetFont Ex_fnt
+
+    		Ex_pos = Ex_subtext.GetRect
+    			Ex_pos.Top = Ex_currentTop + CInt(Ex_source.GetCell(Ex_RowIter,23).Text)
+    			Ex_pos.Left = Ex_x_pos - Ex_paddingLeft + (Ex_activeSpanSlot*Ex_spanWidth) + CInt(Ex_source.GetCell(Ex_RowIter,21).Text)
+    			Ex_pos.Width = (CInt(Ex_source.GetCell(Ex_RowIter,7).Text) * Ex_spanWidth) - CInt(Ex_source.GetCell(Ex_RowIter,21).Text) - CInt(Ex_source.GetCell(Ex_RowIter,22).Text)  
+    			Ex_pos.Height = Ex_buttonHeight - CInt(Ex_source.GetCell(Ex_RowIter,23).Text) - CInt(Ex_source.GetCell(Ex_RowIter,20).Text)
+    		Ex_subtext.SetRect Ex_pos
+    		Ex_activeSpanSlot = Ex_activeSpanSlot + CInt(Ex_source.GetCell(Ex_RowIter,7).Text)
+   		end if
+
+		' Expression/Dimension Button
+		if (Ex_source.GetCell(Ex_RowIter,1).Text = "2" or Ex_source.GetCell(Ex_RowIter,1).Text = "5" or Ex_source.GetCell(Ex_RowIter,1).Text = "14" or Ex_source.GetCell(Ex_RowIter,1).Text = "1" or Ex_source.GetCell(Ex_RowIter,1).Text = "4" ) then
+			Ex_BR=false
+			Ex_BL=false
+			Ex_TR=false
+			Ex_TL=false
+			if (Ex_source.GetCell(Ex_RowIter,17).Text = "1") then
+				Ex_BR=true
+			end if
+			if (Ex_source.GetCell(Ex_RowIter,18).Text = "1") then
+				Ex_TL=true
+			end if
+			if (Ex_source.GetCell(Ex_RowIter,19).Text = "1") then
+				Ex_TR=true
+			end if
+			if (Ex_source.GetCell(Ex_RowIter,16).Text = "1") then
+				Ex_BL=true
+			end if
+
+			ShowVal = 2
+			ErrorText = "' '"
+			if CInt(Ex_source.GetCell(Ex_RowIter,32).Text) = 0 then 
+				ShowVal = 1 
+				ErrorText = "'Not available in report'"
+			end if
+			if CInt(Ex_source.GetCell(Ex_RowIter,28).Text) = 0 then 
+				ShowVal = 0 
+				ErrorText = "'Not available in your Edition'"
+			end if
+			
+			set Ex_button = ActiveDocument.ActiveSheet.CreateTextObject
+			Ex_button.SetLayer CInt(Ex_source.GetCell(Ex_RowIter,15).Text)
+			Ex_prop = Ex_button.GetProperties
+				Ex_prop.Layout.Frame.ObjectID = Ex_objectPrefix & objectCount
+				objectCount = objectCount + 1
+				Ex_prop.Layout.BkgColor.PrimaryCol.IsCalculated = true
+				if (Ex_source.GetCell(Ex_RowIter,1).Text = "2" or Ex_source.GetCell(Ex_RowIter,1).Text = "5" or Ex_source.GetCell(Ex_RowIter,1).Text = "14") then
+					Ex_prop.Layout.Text.v = "=Only({<%Dic_Item={" & Ex_source.GetCell(Ex_RowIter,5).Text & "}>} %Dic_Value)"
+					if (ShowVal = 2) then
+						Ex_prop.Layout.BkgColor.PrimaryCol.ColorExpr.v = "if(" & Ex_source.GetCell(Ex_RowIter,12).Text & "_" & CompSufix & "=1, ARGB(255," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Red," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Green," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Blue),ARGB(c_ProcessShadeBase," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Red," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Green," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Blue))"
+					else
+						Ex_prop.Layout.BkgColor.PrimaryCol.ColorExpr.v = "$(c_GreyLow_BG)"
+					end if
+					Ex_prop.Layout.TextAdjustHorizontal = 1
+					Ex_prop.Layout.TextAdjustVertical = 4
+					Ex_prop.Layout.TextColor.PrimaryCol.IsCalculated = true
+					if (ShowVal = 2) then
+						Ex_prop.Layout.TextColor.PrimaryCol.ColorExpr.v = "if(" & Ex_source.GetCell(RowIter,12).Text & "_" & CompSufix & "=1,$(" & Ex_source.GetCell(Ex_RowIter,0).Text & "_FG),$(" & Ex_source.GetCell(Ex_RowIter,0).Text & "_FGL))"
+					else
+						Ex_prop.Layout.TextColor.PrimaryCol.ColorExpr.v = "$(c_GreyMid_BG)"
+					end if
+				elseif (Ex_source.GetCell(Ex_RowIter,1).Text = "1") then
+					Ex_prop.Layout.Text.v = "=Only({<%Dic_Item={" & Ex_source.GetCell(Ex_RowIter,5).Text & "}>} %Dic_Value)"
+					if (ShowVal = 2) then
+						Ex_prop.Layout.BkgColor.PrimaryCol.ColorExpr.v = "if(" & Ex_source.GetCell(Ex_RowIter,12).Text & "_" & CompSufix & "=1, ARGB(255," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Red," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Green," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Blue),ARGB(c_ShadeBase+(c_ShadeInc*c_ShadeMultiplierButton)," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Red," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Green," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Blue))"
+					else
+						Ex_prop.Layout.TextColor.PrimaryCol.IsCalculated = true
+						Ex_prop.Layout.BkgColor.PrimaryCol.ColorExpr.v = "$(c_GreyLow_BG)"
+						Ex_prop.Layout.TextColor.PrimaryCol.ColorExpr.v = "$(c_GreyMid_BG)"
+					end if
+
+				elseif (Ex_source.GetCell(Ex_RowIter,1).Text = "4") then 
+					Ex_prop.Layout.Text.v = " "
+					if (ShowVal = 2) then
+						Ex_prop.Layout.BkgColor.PrimaryCol.ColorExpr.v = "if(" & Ex_source.GetCell(Ex_RowIter,12).Text & "_" & CompSufix & "=1,ARGB(255-(c_ShadeInc*c_ShadeAuxButtonOffset)," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Red," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Green," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Blue),ARGB(c_ShadeBase+(c_ShadeInc*c_ShadeAuxButtonOffset)+(c_ShadeInc*c_ShadeMultiplierButton)," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Red," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Green," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Blue))"
+					else
+						Ex_prop.Layout.TextColor.PrimaryCol.IsCalculated = true
+						Ex_prop.Layout.BkgColor.PrimaryCol.ColorExpr.v = "$(c_GreyLow_BG)"
+						Ex_prop.Layout.TextColor.PrimaryCol.ColorExpr.v = "$(c_GreyMid_BG)"
+					end if
+
+				else
+					Ex_prop.Layout.Text.v = " "
+					if (ShowVal = 2) then
+						Ex_prop.Layout.BkgColor.PrimaryCol.ColorExpr.v = "if(" & Ex_source.GetCell(Ex_RowIter,12).Text & "_" & CompSufix & "=1,ARGB(255-(c_ShadeInc*c_ShadeAuxButtonOffset)," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Red," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Green," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Blue),ARGB(c_ShadeBase+(c_ShadeInc*c_ShadeAuxButtonOffset)+(c_ShadeInc*c_ShadeMultiplierButton)," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Red," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Green," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Blue))"
+					else
+						Ex_prop.Layout.TextColor.PrimaryCol.IsCalculated = true
+						Ex_prop.Layout.BkgColor.PrimaryCol.ColorExpr.v = "$(c_GreyLow_BG)"
+						Ex_prop.Layout.TextColor.PrimaryCol.ColorExpr.v = "$(c_GreyMid_BG)"
+					end if
+
+				end if
+				Ex_prop.Layout.Frame.RoundedShape = true
+				Ex_prop.Layout.Frame.FixCorner = true
+				Ex_prop.Layout.Frame.FixCornerSize = 30
+				Ex_prop.Layout.Frame.Power = 2
+				Ex_prop.Layout.Frame.EnableBottomLeftRounded = Ex_BL
+				Ex_prop.Layout.Frame.EnableBottomRightRounded = Ex_BR
+				Ex_prop.Layout.Frame.EnableTopLeftRounded = Ex_TL
+				Ex_prop.Layout.Frame.EnableTopRightRounded = Ex_TR
+
+				Ex_prop.Layout.Frame.Color.PrimaryCol.isCalculated = true
+				Ex_prop.Layout.Frame.Color.PrimaryCol.ColorExpr.v = "ARGB(255," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Red," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Green," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Blue)"  '"$(c_GreyMid_BG)" 
+				if (Ex_source.GetCell(Ex_RowIter,25).Text = "1") then
+					Ex_prop.Layout.Frame.BorderWidth = 8 '8
+				else
+					Ex_prop.Layout.Frame.BorderWidth = 0 '8
+				end if
+				
+				if (ShowVal <> 2) then
+					Ex_prop.Layout.Frame.BorderWidth = 0 
+				end if
+				
+
+				Ex_prop.Layout.Frame.Show.Always = false
+     			Ex_prop.Layout.Frame.Show.Expression.v = "_MenuActive=1 and _ActiveExpression = " & chr(39) & Comp_Prefix & "_" & menuID & "_" & CompSufix & chr(39)
+			
+				if (ShowVal = 2) then
+					set Ex_buttonAction = Ex_prop.Layout.ActionItems
+					Ex_buttonAction.Add
+					Ex_buttonAction.Item(0).Type=31
+					set Ex_actionParam = Ex_buttonAction.Item(0).Parameters
+					Ex_actionParam.Add
+					Ex_actionParam.Item(0).v = Ex_source.GetCell(Ex_RowIter,12).Text & "_" & CompSufix
+					Ex_actionParam.Add
+					Ex_actionParam.Item(1).v = "=if(" & Ex_source.GetCell(Ex_RowIter,12).Text & "_" & CompSufix & "=1,0,1)" 
+				end if  
+				help_Text = "=Only({<%Dic_Item={"&Ex_source.GetCell(Ex_RowIter,27).Text&"}>} %Dic_Value) &chr(10) & chr(10) & " & ErrorText & " & chr(10) & chr(10) & '(" & Ex_source.GetCell(Ex_RowIter,5).Text & "H" & Ex_source.GetCell(Ex_RowIter,27).Text & ")'" 
+				Ex_prop.Layout.Frame.HelpText.v = help_Text
+			Ex_button.SetProperties Ex_prop	
+
+		    set Ex_fr = Ex_button.GetFrameDef
+				Ex_fr.ShowCaption = false
+			Ex_button.SetFrameDef Ex_fr
+
+			Ex_fnt = Ex_button.GetFrameDef.Font
+				Ex_fnt.FontName = "Arial"
+				Ex_fnt.Bold = false
+				Ex_fnt.Italic = false
+				Ex_fnt.Underline = false
+				Ex_fnt.PointSize1000 = 8000
+			Ex_button.SetFont Ex_fnt
+
+    		Ex_pos = Ex_button.GetRect
+    			Ex_pos.Top = Ex_currentTop + CInt(Ex_source.GetCell(Ex_RowIter,23).Text) 
+    			Ex_pos.Left = Ex_x_pos - Ex_paddingLeft + (Ex_activeSpanSlot*Ex_spanWidth) + CInt(Ex_source.GetCell(Ex_RowIter,21).Text) 
+    			Ex_pos.Width = CInt(Ex_source.GetCell(Ex_RowIter,7).Text) * Ex_spanWidth - CInt(Ex_source.GetCell(Ex_RowIter,21).Text) - CInt(Ex_source.GetCell(Ex_RowIter,22).Text)  
+    			Ex_pos.Height = Ex_buttonHeight - CInt(Ex_source.GetCell(Ex_RowIter,23).Text) - CInt(Ex_source.GetCell(Ex_RowIter,20).Text)
+    		Ex_button.SetRect Ex_pos
+    		Ex_activeSpanSlot = Ex_activeSpanSlot + CInt(Ex_source.GetCell(Ex_RowIter,7).Text)
+		end if
+	next				  
+    call RB_OverlayVisible("_RB_Dim_Overlay_", menuID, Ex_x_pos-10, 66-10, menuWidth+20, Ex_currentHeight + Ex_buttonHeight + 25, "_ActiveExpression", Comp_Prefix, CompSufix)
+end sub
+
+
+sub RB_BuildSelectionsExpandedMenu(menuID, masterButtonHeight,Comp_Prefix,CompSufix, MasterType, Comp_Type)
+
+	Ex_objectPrefix = "_RB_Sel_" & Comp_Prefix & "_" & menuID & "_" & CompSufix & "_"
+	objectCount=1
+	set Ex_source = ActiveDocument.GetSheetObject("RBDimData")
+	Ex_buttonHeight = 27
+	ListboxHeightMultiplier = 3
+
+	for Ex_firstRec = 1 to Ex_source.GetRowCount-1
+		if (Ex_source.GetCell(Ex_firstRec,14).Text = menuID) then
+			Ex_startPos = Ex_firstRec
+			Ex_currentRow = Ex_source.GetCell(Ex_firstRec,8).Text
+			Ex_currentOwner = Ex_source.GetCell(Ex_firstRec,10).Text
+			menuWidth = CInt(Ex_source.GetCell(Ex_firstRec,11).Text)
+			Ex_x_pos = (1280/2) - (menuWidth/2)
+			Ex_currentTop = 66
+			Ex_currentHeight = 0
+			FirstLine = 1
+			Ex_totalSpans = CInt(Ex_source.GetCell(Ex_firstRec,30).Text)
+			Ex_paddingTop = CInt(Ex_source.GetCell(Ex_firstRec,23).Text)
+			Ex_paddingBottom = CInt(Ex_source.GetCell(Ex_firstRec,20).Text)
+			Ex_paddingLeft = CInt(Ex_source.GetCell(Ex_firstRec,21).Text)
+			Ex_paddingRight = CInt(Ex_source.GetCell(Ex_firstRec,22).Text)
+			Ex_totalWidth = menuWidth + Ex_paddingLeft + Ex_paddingRight
+			Ex_spanWidth = (Ex_totalWidth)/Ex_totalSpans
+			Ex_activeSpanSlot = 0
+			exit for
+		end if
+	next
+
+	for Ex_RowIter = Ex_startPos to Ex_source.GetRowCount-1
+		if (Ex_source.GetCell(Ex_RowIter,14).Text <> menuID) then
+			exit for
+		end if
+
+		if (Ex_currentRow <> Ex_source.GetCell(Ex_RowIter,8).Text) then
+			Ex_currentRow = Ex_source.GetCell(Ex_RowIter,8).Text
+			if (FirstLine=1) then
+				if (Ex_source.GetCell(Ex_RowIter,1).Text = "8") then
+					Ex_currentTop = Ex_currentTop + (masterButtonHeight*.8)
+					Ex_currentHeight = Ex_currentHeight + (masterButtonHeight*.8)
+				else
+					Ex_currentTop = Ex_currentTop + masterButtonHeight
+					Ex_currentHeight = Ex_currentHeight + masterButtonHeight
+				end if 
+			else
+				if IsHeadingLine = 1 then				
+					Ex_currentTop = Ex_currentTop + (Ex_buttonHeight)
+					Ex_currentHeight = Ex_currentHeight + (Ex_buttonHeight)
+				else
+					Ex_currentTop = Ex_currentTop + (Ex_buttonHeight*ListboxHeightMultiplier)
+					Ex_currentHeight = Ex_currentHeight + (Ex_buttonHeight*ListboxHeightMultiplier)
+				end if
+			end if
+			FirstLine=0
+			Ex_activeSpanSlot = 0
+			IsHeadingLine = 0
+		end if
+
+		if (Ex_source.GetCell(Ex_RowIter,1).Text = "13" or Ex_source.GetCell(Ex_RowIter,1).Text = "16") and (Ex_source.GetCell(Ex_RowIter,14).Text = menuID) then
+			set Ex_text = ActiveDocument.ActiveSheet.CreateTextObject
+			Ex_text.SetLayer 85 
+			set Ex_prop = Ex_text.GetProperties
+				Ex_prop.Layout.Frame.ObjectID = Ex_objectPrefix & "Header" & objectCount
+				objectCount = objectCount + 1
+				Ex_prop.Layout.Text.v = "=Only({<%Dic_Item={" & Ex_source.GetCell(Ex_RowIter,5).Text & "}>} %Dic_Value)"
+				Ex_prop.Layout.BkgColor.PrimaryCol.IsCalculated = true
+				Ex_prop.Layout.BkgColor.PrimaryCol.ColorExpr.v = "$(c_Sheet_BG)"
+				Ex_prop.Layout.TextColor.PrimaryCol.IsCalculated = true
+				Ex_prop.Layout.TextColor.PrimaryCol.ColorExpr.v = "ARGB(255," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Red," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Green," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Blue)"
+				'Ex_prop.Layout.Frame.Color.PrimaryCol.isCalculated = true
+				'Ex_prop.Layout.Frame.Color.PrimaryCol.ColorExpr.v = "ARGB(255," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Red," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Green," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Blue)"
+				Ex_prop.Layout.Frame.BorderWidth = 0 '8
+				Ex_prop.Layout.Frame.Show.Always = false
+   		  		Ex_prop.Layout.Frame.Show.Expression.v = "_MenuActive=0 and _ActiveExpression = " & chr(39) & Comp_Prefix & "_" & menuID & "_" & CompSufix & chr(39)
+				help_Text = "(" & Ex_source.GetCell(Ex_RowIter,5).Text & ")" 
+				Ex_prop.Layout.Frame.HelpText.v = help_Text
+			Ex_text.SetProperties Ex_prop	
+
+		    set Ex_fr = Ex_text.GetFrameDef
+				Ex_fr.RoundedShape = false
+				Ex_fr.ShowCaption = false
+			Ex_text.SetFrameDef Ex_fr
+
+    		set Ex_pos = Ex_text.GetRect
+    			Ex_pos.Top = Ex_currentTop
+    			Ex_pos.Left = Ex_x_pos
+    			Ex_pos.Width = Ex_totalWidth + 6
+    			Ex_pos.Height = Ex_buttonHeight
+    		Ex_text.SetRect Ex_pos
+
+			Ex_font = Ex_text.GetFrameDef.Font
+				Ex_font.FontName = "Arial"
+				Ex_font.Bold = false
+				Ex_font.Italic = false
+				Ex_font.Underline = false
+				Ex_font.PointSize1000 = 16000
+			Ex_text.SetFont Ex_font
+
+		end if
+
+		' Sub heading
+		if (Ex_source.GetCell(Ex_RowIter,1).Text = "8" or Ex_source.GetCell(Ex_RowIter,1).Text = "10") then
+			IsHeadingLine = 1
+			set Ex_subtext = ActiveDocument.ActiveSheet.CreateTextObject
+			Ex_subtext.SetLayer CInt(Ex_source.GetCell(Ex_RowIter,15).Text)
+			Ex_prop = Ex_subtext.GetProperties
+				Ex_prop.Layout.Frame.ObjectID = Ex_objectPrefix & objectCount
+				objectCount = objectCount + 1
+				Ex_prop.Layout.Text.v = "=Only({<%Dic_Item={" & Ex_source.GetCell(Ex_RowIter,5).Text & "}>} %Dic_Value)"
+				Ex_prop.Layout.TextAdjustHorizontal = 1
+				Ex_prop.Layout.TextAdjustVertical = 8
+				Ex_prop.Layout.BkgAlpha = 0
+				Ex_prop.Layout.BkgColor.PrimaryCol.IsCalculated = true
+				Ex_prop.Layout.BkgColor.PrimaryCol.ColorExpr.v = "$(c_Sheet_BG)"
+				Ex_prop.Layout.TextColor.PrimaryCol.IsCalculated = true
+				Ex_prop.Layout.TextColor.PrimaryCol.ColorExpr.v = "$(c_Sheet_FG)"
+				Ex_prop.Layout.Frame.Show.Always = false
+   		  		Ex_prop.Layout.Frame.Show.Expression.v = "_MenuActive=0 and _ActiveExpression = " & chr(39) & Comp_Prefix & "_" & menuID & "_" & CompSufix & chr(39)
+				help_Text = "(" & Ex_source.GetCell(Ex_RowIter,5).Text & ")" 
+				Ex_prop.Layout.Frame.HelpText.v = help_Text
+			Ex_subtext.SetProperties Ex_prop	
+
+		    set Ex_fr = Ex_subtext.GetFrameDef
+				Ex_fr.RoundedShape = false
+				Ex_fr.ShowCaption = false
+			Ex_subtext.SetFrameDef Ex_fr
+
+			Ex_fnt = Ex_subtext.GetFrameDef.Font
+				Ex_fnt.FontName = "Arial"
+				Ex_fnt.Bold = false
+				Ex_fnt.Italic = false
+				Ex_fnt.Underline = false
+				Ex_fnt.PointSize1000 = 10000
+			Ex_subtext.SetFont Ex_fnt
+
+    		Ex_pos = Ex_subtext.GetRect
+    			Ex_pos.Top = Ex_currentTop + CInt(Ex_source.GetCell(Ex_RowIter,23).Text)
+    			Ex_pos.Left = Ex_x_pos - Ex_paddingLeft + (Ex_activeSpanSlot*Ex_spanWidth) + CInt(Ex_source.GetCell(Ex_RowIter,21).Text)
+    			Ex_pos.Width = (CInt(Ex_source.GetCell(Ex_RowIter,30).Text) * Ex_spanWidth) - CInt(Ex_source.GetCell(Ex_RowIter,21).Text) - CInt(Ex_source.GetCell(Ex_RowIter,22).Text)  
+    			Ex_pos.Height = Ex_buttonHeight - CInt(Ex_source.GetCell(Ex_RowIter,23).Text) - CInt(Ex_source.GetCell(Ex_RowIter,20).Text)
+    		Ex_subtext.SetRect Ex_pos
+    		Ex_activeSpanSlot = Ex_activeSpanSlot + CInt(Ex_source.GetCell(Ex_RowIter,30).Text)
+   		end if
+
+		' List Box Creation
+		if (Ex_source.GetCell(Ex_RowIter,1).Text = "1") then
+			Ex_BR=false
+			Ex_BL=false
+			Ex_TR=false
+			Ex_TL=false
+			set Ex_button = ActiveDocument.ActiveSheet.CreateListBox
+			Ex_button.SetLayer CInt(Ex_source.GetCell(Ex_RowIter,15).Text)
+			Ex_prop = Ex_button.GetProperties
+				Ex_prop.Layout.Frame.ObjectID = Ex_objectPrefix & objectCount
+				objectCount = objectCount + 1
+				Ex_prop.Def.Name = Ex_source.GetCell(Ex_RowIter,29).Text
+				Ex_prop.Title.v = "=Only({<%Dic_Item={" & Ex_source.GetCell(Ex_RowIter,5).Text & "}>} %Dic_Value)" 
+				Ex_prop.Layout.MultiLine = 1
+
+				Ex_prop.Layout.Frame.ActiveBgColor.PrimaryCol.ColorExpr.v = "$(c_GreyMid_BG)"
+				Ex_prop.Layout.Frame.ActiveBgColor.PrimaryCol.IsCalculated = true
+				Ex_prop.Layout.Frame.ActiveFgColor.PrimaryCol.ColorExpr.v = "ARGB(255," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Red," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Green," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Blue)"
+				Ex_prop.Layout.Frame.ActiveFgColor.PrimaryCol.IsCalculated = true
+				Ex_prop.Layout.Frame.BgColor.PrimaryCol.ColorExpr.v = "$(c_GreyLow_BG)"
+				Ex_prop.Layout.Frame.BgColor.PrimaryCol.IsCalculated = true
+				Ex_prop.Layout.Frame.FgColor.PrimaryCol.ColorExpr.v = "ARGB(255," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Red," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Green," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Blue)"
+				Ex_prop.Layout.Frame.FgColor.PrimaryCol.IsCalculated = true
+
+				Ex_prop.Layout.Frame.CaptionFont.FontName = "Arial"
+				Ex_prop.Layout.Frame.CaptionFont.Bold = false
+				Ex_prop.Layout.Frame.CaptionFont.Italic = false
+				Ex_prop.Layout.Frame.CaptionFont.Underline = false
+				Ex_prop.Layout.Frame.CaptionFont.PointSize1000 = 10000
+
+				Ex_prop.Layout.Frame.ClearIcon = false
+				Ex_prop.Layout.Frame.SearchIcon = false
+				Ex_prop.Layout.Frame.RoundedShape = true
+				Ex_prop.Layout.Frame.FixCorner = true
+				Ex_prop.Layout.Frame.FixCornerSize = 30
+				Ex_prop.Layout.Frame.Power = 2
+				Ex_prop.Layout.Frame.EnableBottomLeftRounded = Ex_BL
+				Ex_prop.Layout.Frame.EnableBottomRightRounded = Ex_BR
+				Ex_prop.Layout.Frame.EnableTopLeftRounded = Ex_TL
+				Ex_prop.Layout.Frame.EnableTopRightRounded = Ex_TR
+
+				Ex_prop.Layout.Frame.Color.PrimaryCol.isCalculated = true
+				Ex_prop.Layout.Frame.Color.PrimaryCol.ColorExpr.v = "$(c_Sheet_BG)"       '"ARGB(255," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Red," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Green," & Ex_source.GetCell(Ex_RowIter,0).Text & "_Blue)"  '"$(c_GreyMid_BG)" 
+				Ex_prop.Layout.Frame.BorderWidth = 0 '8
+				Ex_prop.Layout.Frame.Show.Always = false
+     			Ex_prop.Layout.Frame.Show.Expression.v = "_MenuActive=0 and _ActiveExpression = " & chr(39) & Comp_Prefix & "_" & menuID & "_" & CompSufix & chr(39)
+			
+				'help_Text = "=Only({<%Dic_Item={"&Ex_source.GetCell(Ex_RowIter,27).Text&"}>} %Dic_Value) & chr(10) & chr(10) & '(" & Ex_source.GetCell(Ex_RowIter,5).Text & "H" & Ex_source.GetCell(Ex_RowIter,27).Text & ")'" 
+				'Ex_prop.Layout.Frame.HelpText.v = help_Text
+			Ex_button.SetProperties Ex_prop	
+
+			Application.WaitForIdle
+
+    		Ex_pos = Ex_button.GetRect
+    			Ex_pos.Top = Ex_currentTop + CInt(Ex_source.GetCell(Ex_RowIter,23).Text) 
+    			Ex_pos.Left = Ex_x_pos - Ex_paddingLeft + (Ex_activeSpanSlot*Ex_spanWidth) + CInt(Ex_source.GetCell(Ex_RowIter,21).Text) 
+    			Ex_pos.Width = CInt(Ex_source.GetCell(Ex_RowIter,30).Text) * Ex_spanWidth - CInt(Ex_source.GetCell(Ex_RowIter,21).Text) - CInt(Ex_source.GetCell(Ex_RowIter,22).Text)  
+    			Ex_pos.Height = (Ex_buttonHeight*ListboxHeightMultiplier) - CInt(Ex_source.GetCell(Ex_RowIter,23).Text) - CInt(Ex_source.GetCell(Ex_RowIter,20).Text)
+    		Ex_button.SetRect Ex_pos
+    		Ex_activeSpanSlot = Ex_activeSpanSlot + CInt(Ex_source.GetCell(Ex_RowIter,30).Text)
+		end if
+	next				  
+    call RB_OverlayVisible("_RB_Sel_Overlay_", menuID, Ex_x_pos-10, 66-10, menuWidth+20, Ex_currentHeight + (Ex_buttonHeight*ListboxHeightMultiplier) + 25, "_ActiveExpression", Comp_Prefix, CompSufix)
+end sub
+
+
+sub RB_Build(CompSufix)
+	objectPrefix = "_RB_Report_"& CompSufix
+	DimCount = 0
+	set source = ActiveDocument.GetSheetObject("RBMasterList")
+
+	set table = ActiveDocument.ActiveSheet().CreateStraightTable
+	set cp = table.GetProperties
+		cp.GraphLayout.Frame.ObjectID = objectPrefix
+		cp.TableProperties.HeaderMultiLine = 4
+	table.SetProperties cp
+
+    set fr = table.GetFrameDef
+		fr.RoundedShape = false
+		fr.ShowCaption = false
+		fr.Color.PrimaryCol.isCalculated = true
+		fr.Color.PrimaryCol.ColorExpr.v = "$(c_Grey_BG)"   ' RGB(255,0,0)
+		fr.BorderWidth = 12
+    table.SetFrameDef fr
+
+    pos = table.GetRect
+    	pos.Top = 283
+    	pos.Left = 244
+    	if (source.GetCell(RowIter,26).Text) <> "0" then
+    		pos.Width = 996
+    	else
+    		pos.Width = 3500
+		end if    	
+    	pos.Height = 584
+    table.SetRect pos
+    	
+	' Add dimensions
+	for RowIter = 1 to source.GetRowCount-1
+		if (source.GetCell(RowIter,2).Text = "1") then
+			'msgbox(source.GetCell(RowIter,23).Text)
+			FieldName = source.GetCell(RowIter,23).Text
+			table.AddDimension FieldName
+			Set cp = table.GetProperties()
+			cp.Dimensions(DimCount).Title.v = "=Only({<%Dic_Item={" & source.GetCell(RowIter,17).Text & "}>} %Dic_Value)"
+			cp.Dimensions(DimCount).EnableCondition.Type = 2
+			cp.Dimensions(DimCount).EnableCondition.Expression = source.GetCell(RowIter,6).Text & "_" & CompSufix & "=1"
+			cp.Dimensions(DimCount).AttributeExpressions.BkgColorExp.Definition.v = "=if(_ShowDimColors=1,$(" & source.GetCell(RowIter,27).Text & "_FG))"
+			cp.Dimensions(DimCount).AttributeExpressions.TextColorExp.Definition.v = "=if(_ShowDimColors=1,ARGB(255," & source.GetCell(RowIter,27).Text & "_Red," & source.GetCell(RowIter,27).Text & "_Green," & source.GetCell(RowIter,27).Text & "_Blue))"
+			table.SetProperties cp
+			DimCount = DimCount + 1
+		end if
+	next
+	' Add Expressions
+	'******************************************************
+	' Show All
+	'******************************************************
+	table.AddExpression "Sum(1)"
+	Set cp = table.GetProperties()
+	cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionData.Show.Type=0
+	cp.Expressions.Item(ExpCount).Item(0).Data.EnableCondition.Type=2
+	cp.Expressions.Item(ExpCount).Item(0).Data.EnableCondition.Expression= "_Exp_ShowAll_" & CompSufix & "=1"
+	table.SetProperties cp
+
+
+	ExpCount = 1
+	for RowIter = 1 to source.GetRowCount-1
+		' Standard Expression
+		if (source.GetCell(RowIter,2).Text = "2") then   '2
+		'if (ExpCount < 35) then  '*******************************************************************************************************************************************LIMITER
+		
+			'******************************************************
+			' Volume Full
+			'******************************************************
+			table.AddExpression "$(_" & source.GetCell(RowIter,24).Text & "_" & source.GetCell(RowIter,25).Text & "_Vol)"
+			table.AddBkgColorExpression "if(_ShowHeatMap=1,$(_" & source.GetCell(RowIter,24).Text & "_" & source.GetCell(RowIter,25).Text & "_Vol_Col))",ExpCount
+			Set cp = table.GetProperties()
+			set expr = cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual
+			expr.Label.v = "=$(_" & source.GetCell(RowIter,24).Text & "_" & source.GetCell(RowIter,25).Text & "_Vol_Label_F" & ")"
+			expr.LabelAdjust = 1
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.Type = 11
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.Dec = "."
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.Fmt = "# ##0"
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.nDec = 2
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.Thou = " "
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.UseThou = 1
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.ColWidth = source.GetCell(RowIter,21).Text
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionData.BrutalSum = true 
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionData.AggregationMode = 0
+			cp.Expressions.Item(ExpCount).Item(0).Data.EnableCondition.Type=2
+			cp.Expressions.Item(ExpCount).Item(0).Data.EnableCondition.Expression= source.GetCell(RowIter,6).Text & "_" & CompSufix & "=1 and _Exp_ShowVolume" & "_" & CompSufix & "=1"
+			table.SetProperties cp
+			ExpCount = ExpCount + 1
+
+			'******************************************************
+			' Volume Contribution
+			'******************************************************
+			table.AddExpression "$(_" & source.GetCell(RowIter,24).Text & "_" & source.GetCell(RowIter,25).Text & "_Vol)"
+			table.AddBkgColorExpression "if(_ShowHeatMap=1,$(_" & source.GetCell(RowIter,24).Text & "_" & source.GetCell(RowIter,25).Text & "_Vol_Col))",ExpCount
+			Set cp = table.GetProperties()
+			set expr = cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual
+			expr.Label.v = "=$(_" & source.GetCell(RowIter,24).Text & "_" & source.GetCell(RowIter,25).Text & "_Vol_Label_C" & ")"
+			expr.LabelAdjust = 1
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.Type = 11
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.Dec = "."
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.Fmt = "###0%"
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.nDec = 0
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.Thou = " "
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.UseThou = 1
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.ColWidth = source.GetCell(RowIter,21).Text
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionData.Relative = true 
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionData.BrutalSum = true 
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionData.AggregationMode = 0
+			cp.Expressions.Item(ExpCount).Item(0).Data.EnableCondition.Type=2
+			cp.Expressions.Item(ExpCount).Item(0).Data.EnableCondition.Expression= source.GetCell(RowIter,6).Text & "_" & CompSufix & "=1 and _Exp_ShowVolumeDis" & "_" & CompSufix & "=1"
+			table.SetProperties cp
+			ExpCount = ExpCount + 1
+
+			'******************************************************
+			' Volume Average
+			'******************************************************
+			table.AddExpression "$(_" & source.GetCell(RowIter,24).Text & "_" & source.GetCell(RowIter,25).Text & "_Vol_Avg)"
+			table.AddBkgColorExpression "if(_ShowHeatMap=1,$(_" & source.GetCell(RowIter,24).Text & "_" & source.GetCell(RowIter,25).Text & "_Vol_Avg_Col))",ExpCount
+			Set cp = table.GetProperties()
+			set expr = cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual
+			expr.Label.v = "=$(_" & source.GetCell(RowIter,24).Text & "_" & source.GetCell(RowIter,25).Text & "_Vol_Label_A" & ")"
+			expr.LabelAdjust = 1
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.Type = 11
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.Dec = "."
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.Fmt = "# ##0.00"
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.nDec = 2
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.Thou = " "
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.UseThou = 1
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.ColWidth = source.GetCell(RowIter,21).Text
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionData.UsePartialSum = false
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionData.AggregationMode = 0
+			cp.Expressions.Item(ExpCount).Item(0).Data.EnableCondition.Type=2
+			cp.Expressions.Item(ExpCount).Item(0).Data.EnableCondition.Expression= source.GetCell(RowIter,6).Text & "_" & CompSufix & "=1 and _Exp_ShowVolumeAvg" & "_" & CompSufix & "=1"
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.VisualCues.LowLimit.v = 0  
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.VisualCues.LowCue.Color.Col = RGB(255,0,0)
+			table.SetProperties cp
+			ExpCount = ExpCount + 1
+
+			'******************************************************
+			' Value Full
+			'******************************************************
+			table.AddExpression "$(_" & source.GetCell(RowIter,24).Text & "_" & source.GetCell(RowIter,25).Text & "_Val)"
+			table.AddBkgColorExpression "if(_ShowHeatMap=1,$(_" & source.GetCell(RowIter,24).Text & "_" & source.GetCell(RowIter,25).Text & "_Val_Col))",ExpCount
+			Set cp = table.GetProperties()
+			set expr = cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual
+			expr.Label.v = "=$(_" & source.GetCell(RowIter,24).Text & "_" & source.GetCell(RowIter,25).Text & "_Val_Label_F" & ")"
+			expr.LabelAdjust = 1
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.Type = 11
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.Dec = "."
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.Fmt = "# ##0"
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.nDec = 2
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.Thou = " "
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.UseThou = 1
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.ColWidth = source.GetCell(RowIter,21).Text
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionData.BrutalSum = true 
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionData.AggregationMode = 0
+			cp.Expressions.Item(ExpCount).Item(0).Data.EnableCondition.Type=2
+			cp.Expressions.Item(ExpCount).Item(0).Data.EnableCondition.Expression= source.GetCell(RowIter,6).Text & "_" & CompSufix & "=1 and _Exp_ShowValue" & "_" & CompSufix & "=1"
+			table.SetProperties cp
+			ExpCount = ExpCount + 1
+
+			'******************************************************
+			' Value Contribution
+			'******************************************************
+			table.AddExpression "$(_" & source.GetCell(RowIter,24).Text & "_" & source.GetCell(RowIter,25).Text & "_Val)"
+			table.AddBkgColorExpression "if(_ShowHeatMap=1,$(_" & source.GetCell(RowIter,24).Text & "_" & source.GetCell(RowIter,25).Text & "_Val_Col))",ExpCount
+			Set cp = table.GetProperties()
+			set expr = cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual
+			expr.Label.v = "=$(_" & source.GetCell(RowIter,24).Text & "_" & source.GetCell(RowIter,25).Text & "_Val_Label_C" & ")"
+			expr.LabelAdjust = 1
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.Type = 11
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.Dec = "."
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.Fmt = "###0%"
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.nDec = 0
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.Thou = " "
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.UseThou = 1
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.ColWidth = source.GetCell(RowIter,21).Text
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionData.Relative = true 
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionData.BrutalSum = true 
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionData.AggregationMode = 0
+			cp.Expressions.Item(ExpCount).Item(0).Data.EnableCondition.Type=2
+			cp.Expressions.Item(ExpCount).Item(0).Data.EnableCondition.Expression= source.GetCell(RowIter,6).Text & "_" & CompSufix & "=1 and _Exp_ShowValueDis" & "_" & CompSufix & "=1"
+			table.SetProperties cp
+			ExpCount = ExpCount + 1
+
+			'******************************************************
+			' Value Average
+			'******************************************************
+			table.AddExpression "$(_" & source.GetCell(RowIter,24).Text & "_" & source.GetCell(RowIter,25).Text & "_Val_Avg)"
+			table.AddBkgColorExpression "if(_ShowHeatMap=1,$(_" & source.GetCell(RowIter,24).Text & "_" & source.GetCell(RowIter,25).Text & "_Val_Avg_Col))",ExpCount
+			Set cp = table.GetProperties()
+			set expr = cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual
+			expr.Label.v = "=$(_" & source.GetCell(RowIter,24).Text & "_" & source.GetCell(RowIter,25).Text & "_Val_Label_A" & ")"
+			expr.LabelAdjust = 1
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.Type = 11
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.Dec = "."
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.Fmt = "# ##0.00"
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.nDec = 2
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.Thou = " "
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.UseThou = 1
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.ColWidth = source.GetCell(RowIter,21).Text
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionData.UsePartialSum = false
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionData.AggregationMode = 0
+			cp.Expressions.Item(ExpCount).Item(0).Data.EnableCondition.Type=2
+			cp.Expressions.Item(ExpCount).Item(0).Data.EnableCondition.Expression= source.GetCell(RowIter,6).Text & "_" & CompSufix & "=1 and _Exp_ShowValueAvg" & "_" & CompSufix & "=1"
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.VisualCues.LowLimit.v = 0  
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.VisualCues.LowCue.Color.Col = RGB(255,0,0)
+			table.SetProperties cp
+			ExpCount = ExpCount + 1
+
+			'******************************************************
+			' Efficiency
+			'******************************************************
+			table.AddExpression "$(_" & source.GetCell(RowIter,24).Text & "_" & source.GetCell(RowIter,25).Text & "_Eff)"
+			table.AddBkgColorExpression "if(_ShowHeatMap=1,$(_" & source.GetCell(RowIter,24).Text & "_" & source.GetCell(RowIter,25).Text & "_Eff_Col))",ExpCount
+			Set cp = table.GetProperties()
+			set expr = cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual
+			expr.Label.v = "=$(_" & source.GetCell(RowIter,24).Text & "_" & source.GetCell(RowIter,25).Text & "_Label_E" & ")"
+			expr.LabelAdjust = 1
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.Type = 11
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.Dec = "."
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.Fmt = "# ##0.00"
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.nDec = 2
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.Thou = " "
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.UseThou = 1
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.ColWidth = source.GetCell(RowIter,21).Text
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionData.BrutalSum = true
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionData.AggregationMode = 1
+			cp.Expressions.Item(ExpCount).Item(0).Data.EnableCondition.Type=2
+			cp.Expressions.Item(ExpCount).Item(0).Data.EnableCondition.Expression= source.GetCell(RowIter,6).Text & "_" & CompSufix & "=1 and _Exp_ShowEff" & "_" & CompSufix & "=1"
+			table.SetProperties cp
+			ExpCount = ExpCount + 1
+		'end if    '*******************************************************************************************************************************************LIMITER END
+		end if
+		
+		' Custom Expression
+		if (source.GetCell(RowIter,2).Text = "5") then '5
+			table.AddExpression source.GetCell(RowIter,28).Text
+			table.AddBkgColorExpression "if(_ShowHeatMap=1,(" & source.GetCell(RowIter,29).Text & "))",ExpCount
+			Set cp = table.GetProperties()
+			set expr = cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual
+			if source.GetCell(RowIter,20).Text = "0" then
+				LastLine = "Only({<%Dic_Item={" & source.GetCell(RowIter,19).Text & "}>} %Dic_Value)"
+			else
+				LastLine = "vCurrency & ' ' & if(Len(MaxString(Value_Short))>0, ' ' & MaxString(Value_Short))"			
+			end if
+			expr.Label.v = "=Only({<%Dic_Item={" & source.GetCell(RowIter,16).Text & "}>} %Dic_Value) & chr(10) & Only({<%Dic_Item={" & source.GetCell(RowIter,17).Text & "}>} %Dic_Value) & chr(10) & Only({<%Dic_Item={" & source.GetCell(RowIter,18).Text & "}>} %Dic_Value) & chr(10) & " & LastLine
+
+			expr.LabelAdjust = 1
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.Type = CInt(source.GetCell(RowIter,33).Text)
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.Dec = "."
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.Fmt = source.GetCell(RowIter,34).Text
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.nDec = CInt(source.GetCell(RowIter,35).Text)
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.Thou = " "
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.UseThou = 1
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.ColWidth = source.GetCell(RowIter,21).Text
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionData.BrutalSum = true 
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionData.AggregationMode =  CInt(source.GetCell(RowIter,36).Text)   '0=sum  1=min = 2=max 3=Average
+			cp.Expressions.Item(ExpCount).Item(0).Data.EnableCondition.Type=2
+			cp.Expressions.Item(ExpCount).Item(0).Data.EnableCondition.Expression= source.GetCell(RowIter,6).Text & "_" & CompSufix & "= 1"
+			table.SetProperties cp
+			ExpCount = ExpCount + 1
+
+		end if
+
+	next
+	for RowIter = 1 to source.GetRowCount-1
+		if (source.GetCell(RowIter,2).Text = "4") then '4
+			'******************************************************
+			' Count Dimension as Expression
+			'******************************************************
+			table.AddExpression "Count (DISTINCT if(Record_Type='Loan',  [" & source.GetCell(RowIter,23).Text & "]))" 
+			table.AddTextColorExpression "=if(_ShowDimColors=1,ARGB(255," & source.GetCell(RowIter,27).Text & "_Red," & source.GetCell(RowIter,27).Text & "_Green," & source.GetCell(RowIter,27).Text & "_Blue))",ExpCount
+			Set cp = table.GetProperties()
+			set expr = cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual
+			expr.Label.v = "=Only({<%Dic_Item={" & source.GetCell(RowIter,16).Text & "}>} %Dic_Value) & chr(10) & Only({<%Dic_Item={" & source.GetCell(RowIter,17).Text & "}>} %Dic_Value) & chr(10) & Only({<%Dic_Item={" & source.GetCell(RowIter,18).Text & "}>} %Dic_Value) & chr(10) & Only({<%Dic_Item={" & source.GetCell(RowIter,19).Text & "}>} %Dic_Value)"
+			expr.LabelAdjust = 1
+
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.Type = 11
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.Dec = "."
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.Fmt = "# ##0"
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.nDec = 2
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.Thou = " "
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.NumberPresentation.UseThou = 1
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionVisual.ColWidth = source.GetCell(RowIter,21).Text
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionData.BrutalSum = true 
+			cp.Expressions.Item(ExpCount).Item(0).Data.ExpressionData.AggregationMode = 0
+			cp.Expressions.Item(ExpCount).Item(0).Data.EnableCondition.Type=2
+			cp.Expressions.Item(ExpCount).Item(0).Data.EnableCondition.Expression= source.GetCell(RowIter,6).Text & "_" & CompSufix & "=1"
+
+			'cp.Dimensions(DimCount).AttributeExpressions.BkgColorExp.Definition.v = "=if(_ShowDimColors=1,$(" & source.GetCell(RowIter,6).Text & "_FG))"
+			'cp.Dimensions(DimCount).AttributeExpressions.TextColorExp.Definition.v = "=if(_ShowDimColors=1,ARGB(255," & source.GetCell(RowIter,6).Text & "_Red," & source.GetCell(RowIter,6).Text & "_Green," & source.GetCell(RowIter,6).Text & "_Blue))"
+
+			table.SetProperties cp
+			ExpCount = ExpCount + 1
+		end if
+	next
+	
+end sub
+
+function BuildNavigation
+	set LB = ActiveDocument.GetSheetObject("LB_NavGroupID")
+	ActiveDocument.Fields("%Nav_Group_ID").Clear
+	boxvalues=LB.GetPossibleValues
+	objectPrefix = "_NV_"
+	objectCount=1
+	ActiveDocument.ActivateSheetByID "Main"
+	Application.WaitForIdle
+	Ex_buttonHeight = 36
+	xPos = 160
+	call RemoveOldComponents(objectPrefix)
+	for i = lbound(boxvalues) to ubound(boxvalues)
+    	ActiveDocument.Fields("%Nav_Group_ID").Select boxvalues(i)
+		Application.WaitForIdle
+		set Ex_source = ActiveDocument.GetSheetObject("TB_NavItems")
+
+		if (boxvalues(i) = "0") then
+			call MenuButton("Zoom", 60, objectCount)
+			call SheetTitleBackgroundBlock(-96, objectCount, 0)
+			for NavItem = 1 to Ex_source.GetRowCount-1
+				'              ObjID                     , xPos, yHeight        , xWidth                           , LRound                           , RRound                           , Dest                             , Dic_ID                           , Dic_Help_ID                     , layer, ActiveButton, ShowCondition, AllowInteraction
+				call NavButton(objectPrefix & objectCount, xPos, Ex_buttonHeight, Ex_source.GetCell(NavItem,4).Text, Ex_source.GetCell(NavItem,5).Text, Ex_source.GetCell(NavItem,6).Text, Ex_source.GetCell(NavItem,0).Text, Ex_source.GetCell(NavItem,1).Text,Ex_source.GetCell(NavItem,8).Text, 60   , false       , false        , Ex_source.GetCell(NavItem,9).Text)
+				xPos = xPos + CInt(Ex_source.GetCell(NavItem,4).Text) + CInt(Ex_source.GetCell(NavItem,7).Text)
+				objectCount = objectCount + 1
+			next
+		else
+			set NavList = ActiveDocument.GetSheetObject("TB_NavSheetID")
+			for NavList_Items = 1 to NavList.GetRowCount-1 
+				xPos = 50
+
+				ActiveDocument.ActivateSheetByID NavList.GetCell(NavList_Items,0).Text 
+				Application.WaitForIdle
+				if (NavList.GetCell(NavList_Items,0).Text <> "Main") then
+					call RemoveOldComponents(objectPrefix)
+					Application.WaitForIdle
+					call SheetTitle(objectPrefix & objectCount, 50, 42, 775, NavList.GetCell(NavList_Items,1).Text, -80)
+					Application.WaitForIdle
+					call MenuButton("Nav", 60, objectCount)
+					call MenuButton("RArrow", 30, objectCount)
+					call SearchObject(30, objectCount)
+					Application.WaitForIdle
+					call SheetTitleBackgroundBlock(-96, objectCount, 0)
+					Application.WaitForIdle
+					call SheetTitleBackgroundBlock(50, objectCount, 1)
+					Application.WaitForIdle
+					objectCount = objectCount + 1
+					displayText = "=Only({<%Dic_Item={36}>} %Dic_Value) & ' : ' &Date(ReloadTime(),'YYYY-MM-DD hh:mm') & CHR(10) & 'Data:' &  DataSource & ' | Config: ' & DataConfig"
+					textColor = "=if(now(2) - ReloadTime()>0.5,$(c_Warning_BG),$(c_GreyLow_BG))"
+					call SheetTitleTextBox(objectCount, 831, 3, 211, 40, displayText, 40, 8000, true, false, 2, 350, textColor)
+					Application.WaitForIdle
+					objectCount = objectCount + 1
+					displayText = "=%Term"
+					textColor = "$(c_Accent_FG)"
+					call SheetTitleTextBox(objectCount, 512, 1, 278, 21, displayText, 30, 12000, false, true, 1, 351, textColor)
+					Application.WaitForIdle
+					objectCount = objectCount + 1
+					displayText = "= Date(VReportStartDate,'WWW DD MMM YYYY')"
+					textColor = "$(c_Accent_FG)"
+					call SheetTitleTextBox(objectCount, 512, 22, 129, 21, displayText, 30, 10000, false, false, 2, 352, textColor)
+					Application.WaitForIdle
+					objectCount = objectCount + 1
+					displayText = "=Date(vReportDate,'WWW DD MMM YYYY hh:mm:ss')"
+					textColor = "$(c_Accent_FG)"
+					call SheetTitleTextBox(objectCount, 666, 22, 219, 21, displayText, 30, 10000, false, false, 0, 353, textColor)
+					Application.WaitForIdle
+					objectCount = objectCount + 1
+					for NavItem = 1 to Ex_source.GetRowCount-1
+						if (NavList.GetCell(NavList_Items,0).Text = Ex_source.GetCell(NavItem,0).Text) then
+							ActiveButton = 1
+						else
+							ActiveButton = 0
+						end if
+						'              ObjID                     , xPos, yHeight        , xWidth                           , LRound                           , RRound                           , Dest                             , Dic_ID                           , Dic_Help_ID                      , layer, ActiveButton, ShowCondition, AllowInteraction
+						call NavButton(objectPrefix & objectCount, xPos, Ex_buttonHeight, Ex_source.GetCell(NavItem,4).Text, Ex_source.GetCell(NavItem,5).Text, Ex_source.GetCell(NavItem,6).Text, Ex_source.GetCell(NavItem,0).Text, Ex_source.GetCell(NavItem,1).Text, Ex_source.GetCell(NavItem,8).Text, 60   , ActiveButton, true         , Ex_source.GetCell(NavItem,9).Text)
+						xPos = xPos + CInt(Ex_source.GetCell(NavItem,4).Text) + CInt(Ex_source.GetCell(NavItem,7).Text)
+						objectCount = objectCount + 1
+					next
+				end if
+			next
+		end if
+	next
+	ActiveDocument.Fields("%Nav_Group_ID").Clear
+end function
+
+
+function BuildSheetLayout
+	set LB = ActiveDocument.GetSheetObject("LBPageNavID")
+	ActiveDocument.Fields("%Page_Nav_ID").Clear
+	boxvalues=LB.GetPossibleValues
+	objectPrefix = "_CO_"
+	objectCount=1
+	for i = lbound(boxvalues) to ubound(boxvalues)
+    	ActiveDocument.Fields("%Page_Nav_ID").Select boxvalues(i)
+		Application.WaitForIdle
+		set source = ActiveDocument.GetSheetObject("TB_PageLayout")
+		for PageLayout = 1 to source.GetRowCount-1 
+			if (PageLayout) = 1 then
+				ActiveDocument.ActivateSheetByID source.GetCell(PageLayout,10).Text 
+				Application.WaitForIdle
+				call RemoveOldComponents(objectPrefix)
+				if (source.GetCell(PageLayout,7).Text) = 1 then
+					CompSufix = source.GetCell(PageLayout,11).Text
+					ActiveDocument.Fields("%Dim_RB_ReportID").Select source.GetCell(PageLayout,11).Text					
+					call RemoveOldComponents("_RB_")
+					call RB_Overlay
+					call RB_BuildLevel1("Dim",CompSufix, "9",1,false,"Button")
+					call RB_BuildLevel1("Exp",CompSufix, "6",1,false,"Button")
+					call RB_BuildLevel1("Sel",CompSufix, "9",0,true,"List")
+					call RB_BuildMeasures(CompSufix)
+					ActiveDocument.Fields("%Dim_RB_ReportID").Clear					
+				end if
+				
+				SpanWidth = 1240 / CInt(source.GetCell(PageLayout,5).Text)
+				SpanHeight = CInt(source.GetCell(PageLayout,8).Text)
+				Spacing = 1
+				CurrentSpanJumper = CInt(source.GetCell(PageLayout,9).Text)
+			
+				if (source.GetCell(PageLayout,7).Text=1) then
+					CurrentTop = 230
+				else
+					CurrentTop = 50
+				end if
+				ActiveRow = source.GetCell(PageLayout,1).Text
+				
+			end if
+			if (ActiveRow <> source.GetCell(PageLayout,1).Text) then
+				ActiveRow = source.GetCell(PageLayout,1).Text
+				CurrentTop = CurrentTop + (SpanHeight*CurrentSpanJumper)
+			end if	
+			
+			
+			' ===============================  Creation of Reports must happen in here =====================================
+			set Ex_text = ActiveDocument.ActiveSheet.CreateTextObject
+			Ex_text.SetLayer 1 
+			set Ex_prop = Ex_text.GetProperties
+				Ex_prop.Layout.Frame.ObjectID = objectPrefix & source.GetCell(PageLayout,10).Text & "_" & objectCount
+				objectCount = objectCount + 1
+				Ex_prop.Layout.Text.v = objectPrefix & source.GetCell(PageLayout,10).Text & "_" & objectCount
+				Ex_prop.Layout.BkgColor.PrimaryCol.IsCalculated = true
+				Ex_prop.Layout.BkgColor.PrimaryCol.ColorExpr.v = "$(c_Accent_BG)"
+				Ex_prop.Layout.TextColor.PrimaryCol.IsCalculated = true
+				Ex_prop.Layout.TextColor.PrimaryCol.ColorExpr.v = "$(c_Accent_FG)"
+				Ex_prop.Layout.Frame.BorderWidth = 0 '8
+				Ex_prop.Layout.Frame.Show.Always = false
+			Ex_text.SetProperties Ex_prop	
+
+		    set Ex_fr = Ex_text.GetFrameDef
+				Ex_fr.RoundedShape = false
+				Ex_fr.ShowCaption = false
+			Ex_text.SetFrameDef Ex_fr
+
+    		set Ex_pos = Ex_text.GetRect
+    			Ex_pos.Top = CurrentTop + Spacing
+    			Ex_pos.Left = (SpanWidth * (CInt(source.GetCell(PageLayout,2).Text)-1)) + Spacing
+    			Ex_pos.Width = (SpanWidth * CInt(source.GetCell(PageLayout,3).Text)) - (Spacing*2) 
+    			Ex_pos.Height = CInt(source.GetCell(PageLayout,9).Text) * SpanHeight - (Spacing*2)
+    		Ex_text.SetRect Ex_pos
+    		
+			' ===============================  Creation of Reports DONE  ================================================
+
+
+    		if (CInt(source.GetCell(PageLayout,9).Text) < CurrentSpanJumper) then
+    			CurrentSpanJumper = CInt(source.GetCell(PageLayout,9).Text)
+    		end if 
+		next
+	next
+	ActiveDocument.Fields("%Page_Nav_ID").Clear
+end function
+
+
+
+
+function SheetTitleBackgroundBlock(layer, objectCount, showWithMenu)
+	Ex_BR=false
+	Ex_BL=false
+	Ex_TR=false
+	Ex_TL=false
+
+	ObjID = "_NV_BarTop_" & layer & "_" & objectCount
+		
+	set Ex_button = ActiveDocument.ActiveSheet.CreateTextObject
+	Ex_button.SetLayer layer
+	Ex_prop = Ex_button.GetProperties
+		Ex_prop.Layout.Frame.ObjectID = ObjID & "_SheetTitleBG"
+		Ex_prop.Layout.BkgColor.PrimaryCol.IsCalculated = true
+		Ex_prop.Layout.BkgAlpha = 255
+		Ex_prop.Layout.BkgColor.PrimaryCol.ColorExpr.v = "$(c_Accent_BG)"
+		Ex_prop.Layout.TextAdjustHorizontal = 1
+		Ex_prop.Layout.TextAdjustVertical = 4
+		Ex_prop.Layout.TextColor.PrimaryCol.IsCalculated = true
+		Ex_prop.Layout.TextColor.PrimaryCol.ColorExpr.v = "$(c_Grey_Mid_FG)"
+		Ex_prop.Layout.Frame.RoundedShape = true
+		Ex_prop.Layout.Frame.FixCorner = true
+		Ex_prop.Layout.Frame.FixCornerSize = 30
+		Ex_prop.Layout.Frame.Power = 2
+		Ex_prop.Layout.Frame.EnableBottomLeftRounded = Ex_BL
+		Ex_prop.Layout.Frame.EnableBottomRightRounded = Ex_BR
+		Ex_prop.Layout.Frame.EnableTopLeftRounded = Ex_TL
+		Ex_prop.Layout.Frame.EnableTopRightRounded = Ex_TR
+		Ex_prop.Layout.Frame.BorderWidth = 0 '8
+		if(showWithMenu=1) then
+			Ex_prop.Layout.Frame.Show.Always = false
+			Ex_prop.Layout.Frame.Show.Expression.v = "_MenuActive=1"
+		end if
+		Ex_prop.Layout.Text.v = ""
+	Ex_button.SetProperties Ex_prop	
+
+    set Ex_fr = Ex_button.GetFrameDef
+		Ex_fr.ShowCaption = false
+	Ex_button.SetFrameDef Ex_fr
+
+	Ex_fnt = Ex_button.GetFrameDef.Font
+		Ex_fnt.FontName = "Arial"
+		Ex_fnt.Bold = false
+		Ex_fnt.Italic = false
+		Ex_fnt.Underline = false
+		Ex_fnt.PointSize1000 = 10000
+	Ex_button.SetFont Ex_fnt
+
+	Ex_pos = Ex_button.GetRect
+		Ex_pos.Top = 0 
+		Ex_pos.Left = 0 
+		Ex_pos.Width = 1240 
+		Ex_pos.Height = 45
+	Ex_button.SetRect Ex_pos
+	
+end function
+
+function SearchObject(layer, objectCount)
+	Ex_BR=true
+	Ex_BL=true
+	Ex_TR=true
+	Ex_TL=true
+
+	ObjID = "_NV_Search_" & layer & "_" & objectCount
+		
+	set Ex_search = ActiveDocument.ActiveSheet.CreateSearchObject
+	Ex_search.SetLayer layer
+	Ex_prop = Ex_search.GetProperties
+		Ex_prop.Frame.ObjectID = ObjID
+		Ex_prop.Appearance=1
+	Ex_search.SetProperties Ex_prop	
+	Ex_pos = Ex_search.GetRect
+		Ex_pos.Top = 9 
+		Ex_pos.Left = 1055 
+		Ex_pos.Width = 180 
+		Ex_pos.Height = 28
+	Ex_search.SetRect Ex_pos
+	
+end function
+
+
+
+function MenuButton(ButType, layer, objectCount)
+	Ex_BR=false
+	Ex_BL=false
+	Ex_TR=false
+	Ex_TL=false
+
+	if (ButType = "Nav") then
+		ObjID = "_NV_MenuButton_" & objectCount
+	elseif (ButType = "RArrow") then
+		ObjID = "_NV_RArrow_" & objectCount
+	else
+		ObjID = "_NV_ZoomButton_" & objectCount
+	end if		
+		
+	set Ex_button = ActiveDocument.ActiveSheet.CreateTextObject
+	Ex_button.SetLayer layer
+	Ex_prop = Ex_button.GetProperties
+		Ex_prop.Layout.Frame.ObjectID = ObjID & "_MenuButton"
+		Ex_prop.Layout.BkgColor.PrimaryCol.IsCalculated = true
+		Ex_prop.Layout.BkgAlpha = 0
+		Ex_prop.Layout.BkgColor.PrimaryCol.ColorExpr.v = "$(c_Accent_BG)"
+		Ex_prop.Layout.TextAdjustHorizontal = 1
+		Ex_prop.Layout.TextAdjustVertical = 4
+		Ex_prop.Layout.TextColor.PrimaryCol.IsCalculated = true
+		Ex_prop.Layout.TextColor.PrimaryCol.ColorExpr.v = "$(c_Grey_Mid_FG)"
+		Ex_prop.Layout.Frame.RoundedShape = true
+		Ex_prop.Layout.Frame.FixCorner = true
+		Ex_prop.Layout.Frame.FixCornerSize = 30
+		Ex_prop.Layout.Frame.Power = 2
+		Ex_prop.Layout.Frame.EnableBottomLeftRounded = Ex_BL
+		Ex_prop.Layout.Frame.EnableBottomRightRounded = Ex_BR
+		Ex_prop.Layout.Frame.EnableTopLeftRounded = Ex_TL
+		Ex_prop.Layout.Frame.EnableTopRightRounded = Ex_TR
+		Ex_prop.Layout.Frame.BorderWidth = 0 '8
+		
+		set Ex_buttonAction = Ex_prop.Layout.ActionItems
+		if (ButType = "Nav") then
+			Ex_buttonAction.Add
+			Ex_buttonAction.Item(0).Type=31	
+			set Ex_actionParam = Ex_buttonAction.Item(0).Parameters
+			Ex_actionParam.Add
+			Ex_actionParam.Item(0).v = "_MenuActive"
+			Ex_actionParam.Add
+			Ex_actionParam.Item(1).v = "=if(_MenuActive=0,1,0)"   
+		elseif(ButType = "Zoom") then
+			Ex_buttonAction.Add
+			Ex_buttonAction.Item(0).Type=13	
+			set Ex_actionParam = Ex_buttonAction.Item(0).Parameters
+			Ex_actionParam.Add
+			Ex_actionParam.Item(0).v = "Zoom"
+		end if
+		Ex_prop.Layout.ImageRepresentation.Presentation = 1   'interpret as image
+		if (ButType = "Nav") then
+			help_Text = "=Only({<%Dic_Item={348}>} %Dic_Value) & chr(10) & chr(10) & '(348)'" 
+			Ex_prop.Layout.Text.v = "=_Image_Menu"
+		elseif (ButType = "RArrow") then
+			help_Text = "" 
+			Ex_prop.Layout.Text.v = "=_Image_RArrow"
+		elseif (ButType = "Zoom") then 
+			help_Text = "=Only({<%Dic_Item={349}>} %Dic_Value) & chr(10) & chr(10) & '(349)'" 
+			Ex_prop.Layout.Text.v = "=_Image_FitToScreen"
+		end if
+		Ex_prop.Layout.Frame.HelpText.v = help_Text
+	Ex_button.SetProperties Ex_prop	
+
+    set Ex_fr = Ex_button.GetFrameDef
+		Ex_fr.ShowCaption = false
+	Ex_button.SetFrameDef Ex_fr
+
+	Ex_fnt = Ex_button.GetFrameDef.Font
+		Ex_fnt.FontName = "Arial"
+		Ex_fnt.Bold = false
+		Ex_fnt.Italic = false
+		Ex_fnt.Underline = false
+		Ex_fnt.PointSize1000 = 10000
+	Ex_button.SetFont Ex_fnt
+
+	Ex_pos = Ex_button.GetRect
+		if (ButType = "Nav") then
+			Ex_pos.Top = 6 
+			Ex_pos.Left = 5 
+			Ex_pos.Width = 21 
+			Ex_pos.Height = 21
+		elseif (ButType = "RArrow") then 
+			Ex_pos.Top = 19 
+			Ex_pos.Left = 638 
+			Ex_pos.Width = 25 
+			Ex_pos.Height = 25
+		elseif (ButType = "Zoom") then
+			Ex_pos.Top = 6 
+			Ex_pos.Left = 5 
+			Ex_pos.Width = 25 
+			Ex_pos.Height = 25
+		end if		
+	Ex_button.SetRect Ex_pos
+	
+end function
+
+function SheetTitleTextBox(ObjID, xPos, yPos, xWidth, yHeight, displayText, layer, fontSize, italics, bold, textAlign, Dic_Help_ID, textColor)
+	Ex_BR=false
+	Ex_BL=false
+	Ex_TR=false
+	Ex_TL=false
+	
+	set Ex_button = ActiveDocument.ActiveSheet.CreateTextObject
+	Ex_button.SetLayer layer
+	Ex_prop = Ex_button.GetProperties
+		Ex_prop.Layout.Frame.ObjectID = "_NV_Txt_" & ObjID & "_TitleTxBox"
+		Ex_prop.Layout.BkgColor.PrimaryCol.IsCalculated = true
+		Ex_prop.Layout.Text.v = displayText
+		Ex_prop.Layout.BkgColor.PrimaryCol.ColorExpr.v = "$(c_Accent_BG)"
+		Ex_prop.Layout.TextAdjustHorizontal = textAlign    '0 = left ; 1 = centre; 2 = right
+		Ex_prop.Layout.TextAdjustVertical = 4
+		Ex_prop.Layout.TextColor.PrimaryCol.IsCalculated = true
+		Ex_prop.Layout.TextColor.PrimaryCol.ColorExpr.v = textColor
+		Ex_prop.Layout.Frame.RoundedShape = true
+		Ex_prop.Layout.Frame.FixCorner = true
+		Ex_prop.Layout.Frame.FixCornerSize = 30
+		Ex_prop.Layout.Frame.Power = 2
+		Ex_prop.Layout.Frame.EnableBottomLeftRounded = Ex_BL
+		Ex_prop.Layout.Frame.EnableBottomRightRounded = Ex_BR
+		Ex_prop.Layout.Frame.EnableTopLeftRounded = Ex_TL
+		Ex_prop.Layout.Frame.EnableTopRightRounded = Ex_TR
+		Ex_prop.Layout.Frame.BorderWidth = 0 '8
+		Ex_prop.Layout.Text.v = displayText
+		help_Text = "=Only({<%Dic_Item={"&Dic_Help_ID&"}>} %Dic_Value) & chr(10) & chr(10) & '(H"&Dic_Help_ID&")'" 
+		Ex_prop.Layout.Frame.HelpText.v = help_Text
+	Ex_button.SetProperties Ex_prop	
+
+    set Ex_fr = Ex_button.GetFrameDef
+		Ex_fr.ShowCaption = false
+	Ex_button.SetFrameDef Ex_fr
+
+	Ex_fnt = Ex_button.GetFrameDef.Font
+		Ex_fnt.FontName = "Arial"
+		Ex_fnt.Bold = bold
+		Ex_fnt.Italic = italics
+		Ex_fnt.Underline = false
+		Ex_fnt.PointSize1000 = fontSize
+	Ex_button.SetFont Ex_fnt
+
+	Ex_pos = Ex_button.GetRect
+		Ex_pos.Top = yPos 
+		Ex_pos.Left = xPos 
+		Ex_pos.Width = xWidth 
+		Ex_pos.Height = yHeight
+	Ex_button.SetRect Ex_pos
+end function
+
+		
+function SheetTitle(ObjID, xPos, yHeight, xWidth, Dic_ID, layer)
+	Ex_BR=false
+	Ex_BL=false
+	Ex_TR=false
+	Ex_TL=false
+	
+	set Ex_button = ActiveDocument.ActiveSheet.CreateTextObject
+	Ex_button.SetLayer layer
+	Ex_prop = Ex_button.GetProperties
+		Ex_prop.Layout.Frame.ObjectID = ObjID & "_SheetTitle"
+		Ex_prop.Layout.BkgColor.PrimaryCol.IsCalculated = true
+		Ex_prop.Layout.Text.v = "=Only({<%Dic_Item={" & Dic_ID & "}>} %Dic_Value)"
+		Ex_prop.Layout.BkgColor.PrimaryCol.ColorExpr.v = "$(c_Accent_BG)"
+		Ex_prop.Layout.TextAdjustHorizontal = 0
+		Ex_prop.Layout.TextAdjustVertical = 4
+		Ex_prop.Layout.TextColor.PrimaryCol.IsCalculated = true
+		Ex_prop.Layout.TextColor.PrimaryCol.ColorExpr.v = "$(c_Accent_FG)"
+		Ex_prop.Layout.Frame.RoundedShape = true
+		Ex_prop.Layout.Frame.FixCorner = true
+		Ex_prop.Layout.Frame.FixCornerSize = 30
+		Ex_prop.Layout.Frame.Power = 2
+		Ex_prop.Layout.Frame.EnableBottomLeftRounded = Ex_BL
+		Ex_prop.Layout.Frame.EnableBottomRightRounded = Ex_BR
+		Ex_prop.Layout.Frame.EnableTopLeftRounded = Ex_TL
+		Ex_prop.Layout.Frame.EnableTopRightRounded = Ex_TR
+		Ex_prop.Layout.Frame.BorderWidth = 0 '8
+		help_Text = "(" & Dic_ID & ")" 
+		Ex_prop.Layout.Frame.HelpText.v = help_Text
+	Ex_button.SetProperties Ex_prop	
+
+    set Ex_fr = Ex_button.GetFrameDef
+		Ex_fr.ShowCaption = false
+	Ex_button.SetFrameDef Ex_fr
+
+	Ex_fnt = Ex_button.GetFrameDef.Font
+		Ex_fnt.FontName = "Arial"
+		Ex_fnt.Bold = false
+		Ex_fnt.Italic = false
+		Ex_fnt.Underline = false
+		Ex_fnt.PointSize1000 = 20000
+	Ex_button.SetFont Ex_fnt
+
+	Ex_pos = Ex_button.GetRect
+		Ex_pos.Top = 1 
+		Ex_pos.Left = xPos 
+		Ex_pos.Width = xWidth 
+		Ex_pos.Height = yHeight
+	Ex_button.SetRect Ex_pos
+end function
+
+function NavButton(ObjID, xPos, yHeight, xWidth, LRound, RRound, Dest, Dic_ID, Dic_Help_ID, layer, ActiveButton, ShowCondition, AllowInteraction)
+	Ex_BR=false
+	Ex_BL=false
+	Ex_TR=false
+	Ex_TL=false
+	if (LRound="1") then
+		Ex_TL=true
+		Ex_BL=true
+	end if
+	if (RRound="1") then
+		Ex_TR=true
+		Ex_BR=true
+	end if
+		
+	set Ex_button = ActiveDocument.ActiveSheet.CreateTextObject
+	Ex_button.SetLayer layer
+	Ex_prop = Ex_button.GetProperties
+		Ex_prop.Layout.Frame.ObjectID = ObjID & "NavBut"
+		Ex_prop.Layout.BkgColor.PrimaryCol.IsCalculated = true
+		Ex_prop.Layout.Text.v = "=Only({<%Dic_Item={" & Dic_ID & "}>} %Dic_Value)"
+		if (ActiveButton=1) then
+			Ex_prop.Layout.BkgAlpha = 128
+			Ex_prop.Layout.BkgColor.PrimaryCol.ColorExpr.v = "$(c_Grey_Mid_BG)"
+			Ex_prop.Layout.TextAdjustHorizontal = 1
+			Ex_prop.Layout.TextAdjustVertical = 4
+			Ex_prop.Layout.TextColor.PrimaryCol.IsCalculated = true
+			Ex_prop.Layout.TextColor.PrimaryCol.ColorExpr.v = "$(c_Grey_Mid_FG)"
+		else
+			Ex_prop.Layout.BkgAlpha = 250
+			Ex_prop.Layout.BkgColor.PrimaryCol.ColorExpr.v = "$(c_Sheet_BG)"
+			Ex_prop.Layout.TextAdjustHorizontal = 1
+			Ex_prop.Layout.TextAdjustVertical = 4
+			Ex_prop.Layout.TextColor.PrimaryCol.IsCalculated = true
+			Ex_prop.Layout.TextColor.PrimaryCol.ColorExpr.v = "$(c_Sheet_FG)"
+		end if	
+
+		if (AllowInteraction = 0) then
+			Ex_prop.Layout.BkgAlpha = 20
+		end if
+
+				
+		Ex_prop.Layout.Frame.RoundedShape = true
+		Ex_prop.Layout.Frame.FixCorner = true
+		Ex_prop.Layout.Frame.FixCornerSize = 30
+		Ex_prop.Layout.Frame.Power = 2
+		Ex_prop.Layout.Frame.EnableBottomLeftRounded = Ex_BL
+		Ex_prop.Layout.Frame.EnableBottomRightRounded = Ex_BR
+		Ex_prop.Layout.Frame.EnableTopLeftRounded = Ex_TL
+		Ex_prop.Layout.Frame.EnableTopRightRounded = Ex_TR
+		Ex_prop.Layout.Frame.BorderWidth = 0 '8
+		
+		if (ShowCondition) then
+			Ex_prop.Layout.Frame.Show.Always = false
+			Ex_prop.Layout.Frame.Show.Expression.v = "_MenuActive=1"
+		end if
+			
+		if (AllowInteraction=1) then
+			set Ex_buttonAction = Ex_prop.Layout.ActionItems
+			Ex_buttonAction.Add
+			Ex_buttonAction.Item(0).Type=31
+			set Ex_actionParam = Ex_buttonAction.Item(0).Parameters
+			Ex_actionParam.Add
+			Ex_actionParam.Item(0).v = "_MenuActive"
+			Ex_actionParam.Add
+			Ex_actionParam.Item(1).v = "0"   
+
+			Ex_buttonAction.Add
+			Ex_buttonAction.Item(1).Type=18
+			set Ex_actionParam = Ex_buttonAction.Item(1).Parameters
+			Ex_actionParam.Add
+			Ex_actionParam.Item(0).v = Dest
+			help_Text = "=Only({<%Dic_Item={" & Dic_Help_ID & "}>} %Dic_Value) & chr(10) & chr(10) & '(" & Dic_ID & " | H"  & Dic_Help_ID & ")'" 
+		else
+			help_Text = "=Only({<%Dic_Item={" & Dic_Help_ID & "}>} %Dic_Value) & chr(10) & chr(10) & Only({<%Dic_Item={347}>} %Dic_Value) & chr(10) & chr(10) & '(" & Dic_ID & " | H"  & Dic_Help_ID & ")'" 
+		end if
+		Ex_prop.Layout.Frame.HelpText.v = help_Text
+	Ex_button.SetProperties Ex_prop	
+
+    set Ex_fr = Ex_button.GetFrameDef
+		Ex_fr.ShowCaption = false
+	Ex_button.SetFrameDef Ex_fr
+
+	Ex_fnt = Ex_button.GetFrameDef.Font
+		Ex_fnt.FontName = "Arial"
+		Ex_fnt.Bold = false
+		Ex_fnt.Italic = false
+		Ex_fnt.Underline = false
+		Ex_fnt.PointSize1000 = 10000
+	Ex_button.SetFont Ex_fnt
+
+	Ex_pos = Ex_button.GetRect
+		Ex_pos.Top = 4 
+		Ex_pos.Left = xPos 
+		Ex_pos.Width = xWidth 
+		Ex_pos.Height = yHeight
+	Ex_button.SetRect Ex_pos
+	
+end function
+
